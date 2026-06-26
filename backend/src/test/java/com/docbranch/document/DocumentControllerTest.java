@@ -105,4 +105,41 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$[0].status").value("DRAFT"))
                 .andExpect(jsonPath("$[0].createdByUserId").value(createdByUserId.toString()));
     }
+
+    @Test
+    void getDocumentReturnsProjectDocument() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        when(documentService.getDocument(projectId, documentDetailId)).thenReturn(
+                new DocumentResponse(
+                        documentDetailId,
+                        projectId,
+                        "Guide",
+                        "Project guide",
+                        "DRAFT",
+                        createdByUserId,
+                        "Owner",
+                        createdAt,
+                        createdAt
+                )
+        );
+
+        mockMvc.perform(get(
+                        "/api/projects/{projectId}/documents/{documentDetailId}",
+                        projectId,
+                        documentDetailId
+                ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.documentDetailId").value(documentDetailId.toString()))
+                .andExpect(jsonPath("$.projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$.name").value("Guide"))
+                .andExpect(jsonPath("$.description").value("Project guide"))
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.createdByUserId").value(createdByUserId.toString()))
+                .andExpect(jsonPath("$.createdByName").value("Owner"))
+                .andExpect(jsonPath("$.createdAt").value("2026-06-26T09:00:00+09:00"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-06-26T09:00:00+09:00"));
+    }
 }

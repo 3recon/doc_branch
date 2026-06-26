@@ -38,4 +38,12 @@ public class DocumentController {
     public List<DocumentResponse> getDocuments(@PathVariable UUID projectId) {
         return documentService.getDocuments(projectId);
     }
+
+    @GetMapping("/{documentDetailId}")
+    public DocumentResponse getDocument(
+            @PathVariable UUID projectId,
+            @PathVariable UUID documentDetailId
+    ) {
+        return documentService.getDocument(projectId, documentDetailId);
+    }
 }

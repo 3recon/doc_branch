@@ -132,6 +132,56 @@ class DocumentServiceTest {
         assertThat(documents.getFirst().createdByName()).isEqualTo("Owner");
     }
 
+    @Test
+    void getDocumentReturnsProjectDocument() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        User createdBy = user(createdByUserId, "Owner");
+        DocumentDetail documentDetail = documentDetail(
+                documentDetailId,
+                project,
+                "Guide",
+                "Project guide",
+                createdBy,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+
+        DocumentResponse response = documentService.getDocument(projectId, documentDetailId);
+
+        assertThat(response.documentDetailId()).isEqualTo(documentDetailId);
+        assertThat(response.projectId()).isEqualTo(projectId);
+        assertThat(response.name()).isEqualTo("Guide");
+        assertThat(response.description()).isEqualTo("Project guide");
+        assertThat(response.status()).isEqualTo("DRAFT");
+        assertThat(response.createdByUserId()).isEqualTo(createdByUserId);
+        assertThat(response.createdByName()).isEqualTo("Owner");
+        assertThat(response.createdAt()).isEqualTo(OffsetDateTime.parse("2026-06-26T09:00:00+09:00"));
+        assertThat(response.updatedAt()).isEqualTo(OffsetDateTime.parse("2026-06-26T09:00:00+09:00"));
+    }
+
+    @Test
+    void getDocumentThrowsBusinessExceptionWhenDocumentDoesNotExistInProject() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project(projectId)));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentService.getDocument(projectId, documentDetailId))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND);
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);
