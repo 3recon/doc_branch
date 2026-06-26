@@ -36,6 +36,64 @@ class ProjectControllerTest {
     private ProjectService projectService;
 
     @Test
+    void getProjectMembersReturnsMembers() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime joinedAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        when(projectService.getProjectMembers(projectId)).thenReturn(List.of(
+                new ProjectMemberResponse(memberId, userId, "Owner", "owner@example.com", "PROJECT_ADMIN", joinedAt)
+        ));
+
+        mockMvc.perform(get("/api/projects/{projectId}/members", projectId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].projectMemberId").value(memberId.toString()))
+                .andExpect(jsonPath("$[0].userId").value(userId.toString()))
+                .andExpect(jsonPath("$[0].name").value("Owner"))
+                .andExpect(jsonPath("$[0].email").value("owner@example.com"))
+                .andExpect(jsonPath("$[0].role").value("PROJECT_ADMIN"))
+                .andExpect(jsonPath("$[0].joinedAt").value("2026-06-26T09:00:00+09:00"));
+    }
+
+    @Test
+    void updateProjectMemberRoleReturnsUpdatedMember() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime joinedAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        when(projectService.updateProjectMemberRole(
+                projectId,
+                memberId,
+                new ProjectMemberRoleUpdateRequest("READ_ONLY")
+        )).thenReturn(
+                new ProjectMemberResponse(memberId, userId, "Owner", "owner@example.com", "READ_ONLY", joinedAt)
+        );
+
+        mockMvc.perform(patch("/api/projects/{projectId}/members/{projectMemberId}", projectId, memberId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "role": "READ_ONLY"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectMemberId").value(memberId.toString()))
+                .andExpect(jsonPath("$.userId").value(userId.toString()))
+                .andExpect(jsonPath("$.role").value("READ_ONLY"));
+    }
+
+    @Test
+    void removeProjectMemberReturnsNoContent() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+
+        mockMvc.perform(delete("/api/projects/{projectId}/members/{projectMemberId}", projectId, memberId))
+                .andExpect(status().isNoContent());
+
+        verify(projectService).removeProjectMember(projectId, memberId);
+    }
+
+    @Test
     void deleteProjectReturnsNoContent() throws Exception {
         UUID projectId = UUID.fromString("66666666-6666-6666-6666-666666666666");
         UUID deletedByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");

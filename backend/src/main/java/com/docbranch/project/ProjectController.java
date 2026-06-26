@@ -50,6 +50,29 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
+    @GetMapping("/{projectId}/members")
+    public List<ProjectMemberResponse> getProjectMembers(@PathVariable UUID projectId) {
+        return projectService.getProjectMembers(projectId);
+    }
+
+    @PatchMapping("/{projectId}/members/{projectMemberId}")
+    public ProjectMemberResponse updateProjectMemberRole(
+            @PathVariable UUID projectId,
+            @PathVariable UUID projectMemberId,
+            @Valid @RequestBody ProjectMemberRoleUpdateRequest request
+    ) {
+        return projectService.updateProjectMemberRole(projectId, projectMemberId, request);
+    }
+
+    @DeleteMapping("/{projectId}/members/{projectMemberId}")
+    public ResponseEntity<Void> removeProjectMember(
+            @PathVariable UUID projectId,
+            @PathVariable UUID projectMemberId
+    ) {
+        projectService.removeProjectMember(projectId, projectMemberId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping
     public List<ProjectSummaryResponse> getProjects() {
         return projectService.getProjects();
