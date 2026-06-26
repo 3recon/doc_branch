@@ -56,4 +56,12 @@ public class ProjectMember {
         projectMember.joinedAt = joinedAt;
         return projectMember;
     }
+
+    public void changeRole(ProjectRole role) {
+        this.role = role;
+    }
+
+    public void remove(OffsetDateTime removedAt) {
+        this.removedAt = removedAt;
+    }
 }

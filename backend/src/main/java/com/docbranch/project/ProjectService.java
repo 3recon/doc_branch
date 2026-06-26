@@ -4,6 +4,7 @@ import com.docbranch.common.exception.BusinessException;
 import com.docbranch.common.exception.ErrorCode;
 import com.docbranch.domain.project.Project;
 import com.docbranch.domain.project.ProjectMember;
+import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.user.User;
 import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
@@ -68,6 +69,34 @@ public class ProjectService {
         project.delete(deletedBy, OffsetDateTime.now());
     }
 
+    public List<ProjectMemberResponse> getProjectMembers(UUID projectId) {
+        validateProjectExists(projectId);
+        return projectMemberRepository.findByProjectProjectIdAndRemovedAtIsNullOrderByJoinedAtAsc(projectId)
+                .stream()
+                .map(this::toMemberResponse)
+                .toList();
+    }
+
+    @Transactional
+    public ProjectMemberResponse updateProjectMemberRole(
+            UUID projectId,
+            UUID projectMemberId,
+            ProjectMemberRoleUpdateRequest request
+    ) {
+        validateProjectExists(projectId);
+        ProjectMember projectMember = findActiveProjectMember(projectId, projectMemberId);
+        projectMember.changeRole(ProjectRole.valueOf(request.role()));
+
+        return toMemberResponse(projectMember);
+    }
+
+    @Transactional
+    public void removeProjectMember(UUID projectId, UUID projectMemberId) {
+        validateProjectExists(projectId);
+        ProjectMember projectMember = findActiveProjectMember(projectId, projectMemberId);
+        projectMember.remove(OffsetDateTime.now());
+    }
+
     public List<ProjectSummaryResponse> getProjects() {
         return projectRepository.findByDeletedAtIsNullOrderByUpdatedAtDesc()
                 .stream()
@@ -80,6 +109,17 @@ public class ProjectService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
 
         return toDetailResponse(project);
+    }
+
+    private void validateProjectExists(UUID projectId) {
+        projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+    }
+
+    private ProjectMember findActiveProjectMember(UUID projectId, UUID projectMemberId) {
+        return projectMemberRepository
+                .findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(projectMemberId, projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_MEMBER_NOT_FOUND));
     }
 
     private ProjectSummaryResponse toSummaryResponse(Project project) {
@@ -101,6 +141,18 @@ public class ProjectService {
                 project.getOwner().getName(),
                 project.getCreatedAt(),
                 project.getUpdatedAt()
+        );
+    }
+
+    private ProjectMemberResponse toMemberResponse(ProjectMember projectMember) {
+        User user = projectMember.getUser();
+        return new ProjectMemberResponse(
+                projectMember.getProjectMemberId(),
+                user.getUserId(),
+                user.getName(),
+                user.getEmail(),
+                projectMember.getRole().name(),
+                projectMember.getJoinedAt()
         );
     }
 }

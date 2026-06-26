@@ -40,6 +40,146 @@ class ProjectServiceTest {
     );
 
     @Test
+    void getProjectMembersReturnsActiveMembers() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        User user = user(
+                UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                "Owner",
+                "owner@example.com"
+        );
+        ProjectMember member = projectMember(
+                UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                project,
+                user,
+                ProjectRole.PROJECT_ADMIN,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndRemovedAtIsNullOrderByJoinedAtAsc(projectId))
+                .thenReturn(List.of(member));
+
+        List<ProjectMemberResponse> members = projectService.getProjectMembers(projectId);
+
+        assertThat(members).hasSize(1);
+        assertThat(members.getFirst().projectMemberId()).isEqualTo(member.getProjectMemberId());
+        assertThat(members.getFirst().userId()).isEqualTo(user.getUserId());
+        assertThat(members.getFirst().name()).isEqualTo("Owner");
+        assertThat(members.getFirst().email()).isEqualTo("owner@example.com");
+        assertThat(members.getFirst().role()).isEqualTo("PROJECT_ADMIN");
+        assertThat(members.getFirst().joinedAt()).isEqualTo(member.getJoinedAt());
+    }
+
+    @Test
+    void updateProjectMemberRoleChangesRole() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        User user = user(
+                UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                "Owner",
+                "owner@example.com"
+        );
+        ProjectMember member = projectMember(
+                memberId,
+                project,
+                user,
+                ProjectRole.PARTICIPANT,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(memberId, projectId))
+                .thenReturn(Optional.of(member));
+
+        ProjectMemberResponse response = projectService.updateProjectMemberRole(
+                projectId,
+                memberId,
+                new ProjectMemberRoleUpdateRequest("READ_ONLY")
+        );
+
+        assertThat(member.getRole()).isEqualTo(ProjectRole.READ_ONLY);
+        assertThat(response.projectMemberId()).isEqualTo(memberId);
+        assertThat(response.role()).isEqualTo("READ_ONLY");
+    }
+
+    @Test
+    void removeProjectMemberSetsRemovedAt() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        User user = user(
+                UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
+                "Owner",
+                "owner@example.com"
+        );
+        ProjectMember member = projectMember(
+                memberId,
+                project,
+                user,
+                ProjectRole.PARTICIPANT,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(memberId, projectId))
+                .thenReturn(Optional.of(member));
+
+        projectService.removeProjectMember(projectId, memberId);
+
+        assertThat(member.getRemovedAt()).isNotNull();
+    }
+
+    @Test
+    void updateProjectMemberRoleThrowsBusinessExceptionWhenMemberDoesNotExist() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID memberId = UUID.fromString("22222222-2222-3333-4444-555555555555");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(memberId, projectId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.updateProjectMemberRole(
+                projectId,
+                memberId,
+                new ProjectMemberRoleUpdateRequest("READ_ONLY")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_MEMBER_NOT_FOUND);
+    }
+
+    @Test
     void deleteProjectSoftDeletesProjectWithDeletedBy() {
         UUID projectId = UUID.fromString("66666666-6666-6666-6666-666666666666");
         UUID deletedByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
@@ -290,5 +430,27 @@ class ProjectServiceTest {
         ReflectionTestUtils.setField(user, "userId", userId);
         ReflectionTestUtils.setField(user, "name", name);
         return user;
+    }
+
+    private User user(UUID userId, String name, String email) {
+        User user = user(userId, name);
+        ReflectionTestUtils.setField(user, "email", email);
+        return user;
+    }
+
+    private ProjectMember projectMember(
+            UUID projectMemberId,
+            Project project,
+            User user,
+            ProjectRole role,
+            OffsetDateTime joinedAt
+    ) {
+        ProjectMember projectMember = BeanUtils.instantiateClass(ProjectMember.class);
+        ReflectionTestUtils.setField(projectMember, "projectMemberId", projectMemberId);
+        ReflectionTestUtils.setField(projectMember, "project", project);
+        ReflectionTestUtils.setField(projectMember, "user", user);
+        ReflectionTestUtils.setField(projectMember, "role", role);
+        ReflectionTestUtils.setField(projectMember, "joinedAt", joinedAt);
+        return projectMember;
     }
 }
