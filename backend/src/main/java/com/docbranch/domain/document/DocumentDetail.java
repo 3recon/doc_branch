@@ -88,4 +88,10 @@ public class DocumentDetail {
         documentDetail.updatedAt = now;
         return documentDetail;
     }
+
+    public void updateBasicInfo(String name, String description, OffsetDateTime updatedAt) {
+        this.name = name;
+        this.description = description;
+        this.updatedAt = updatedAt;
+    }
 }
