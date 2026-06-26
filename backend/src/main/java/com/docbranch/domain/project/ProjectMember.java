@@ -57,6 +57,15 @@ public class ProjectMember {
         return projectMember;
     }
 
+    public static ProjectMember create(Project project, User user, ProjectRole role, OffsetDateTime joinedAt) {
+        ProjectMember projectMember = new ProjectMember();
+        projectMember.project = project;
+        projectMember.user = user;
+        projectMember.role = role;
+        projectMember.joinedAt = joinedAt;
+        return projectMember;
+    }
+
     public void changeRole(ProjectRole role) {
         this.role = role;
     }

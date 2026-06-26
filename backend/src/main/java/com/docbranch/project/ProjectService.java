@@ -2,6 +2,7 @@ package com.docbranch.project;
 
 import com.docbranch.common.exception.BusinessException;
 import com.docbranch.common.exception.ErrorCode;
+import com.docbranch.domain.project.InvitationStatus;
 import com.docbranch.domain.project.Project;
 import com.docbranch.domain.project.ProjectInvitation;
 import com.docbranch.domain.project.ProjectMember;
@@ -126,6 +127,42 @@ public class ProjectService {
                 .toList();
     }
 
+    @Transactional
+    public ProjectInvitationResponse acceptProjectInvitation(
+            UUID projectId,
+            UUID invitationId,
+            ProjectInvitationAcceptRequest request
+    ) {
+        validateProjectExists(projectId);
+        ProjectInvitation invitation = findPendingInvitation(projectId, invitationId);
+        User user = userRepository.findById(request.userId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        invitation.accept();
+        projectMemberRepository.save(ProjectMember.create(
+                invitation.getProject(),
+                user,
+                invitation.getRole(),
+                OffsetDateTime.now()
+        ));
+
+        return toInvitationResponse(invitation);
+    }
+
+    @Transactional
+    public ProjectInvitationExpireResponse expireProjectInvitations(UUID projectId) {
+        validateProjectExists(projectId);
+        List<ProjectInvitation> invitations = projectInvitationRepository
+                .findByProjectProjectIdAndStatusAndExpiresAtBefore(
+                        projectId,
+                        InvitationStatus.PENDING,
+                        OffsetDateTime.now()
+                );
+        invitations.forEach(ProjectInvitation::expire);
+
+        return new ProjectInvitationExpireResponse(invitations.size());
+    }
+
     public List<ProjectSummaryResponse> getProjects() {
         return projectRepository.findByDeletedAtIsNullOrderByUpdatedAtDesc()
                 .stream()
@@ -153,6 +190,12 @@ public class ProjectService {
         return projectMemberRepository
                 .findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(projectMemberId, projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_MEMBER_NOT_FOUND));
+    }
+
+    private ProjectInvitation findPendingInvitation(UUID projectId, UUID invitationId) {
+        return projectInvitationRepository
+                .findByInvitationIdAndProjectProjectIdAndStatus(invitationId, projectId, InvitationStatus.PENDING)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_INVITATION_NOT_FOUND));
     }
 
     private ProjectSummaryResponse toSummaryResponse(Project project) {

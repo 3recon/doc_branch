@@ -89,6 +89,20 @@ public class ProjectController {
         return projectService.getProjectInvitations(projectId);
     }
 
+    @PostMapping("/{projectId}/invitations/{invitationId}/accept")
+    public ProjectInvitationResponse acceptProjectInvitation(
+            @PathVariable UUID projectId,
+            @PathVariable UUID invitationId,
+            @Valid @RequestBody ProjectInvitationAcceptRequest request
+    ) {
+        return projectService.acceptProjectInvitation(projectId, invitationId, request);
+    }
+
+    @PostMapping("/{projectId}/invitations/expire")
+    public ProjectInvitationExpireResponse expireProjectInvitations(@PathVariable UUID projectId) {
+        return projectService.expireProjectInvitations(projectId);
+    }
+
     @GetMapping
     public List<ProjectSummaryResponse> getProjects() {
         return projectService.getProjects();
