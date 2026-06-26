@@ -59,6 +59,15 @@ public class DocumentService {
                 .toList();
     }
 
+    public DocumentResponse getDocument(UUID projectId, UUID documentDetailId) {
+        findActiveProject(projectId);
+        DocumentDetail documentDetail = documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+
+        return toResponse(documentDetail);
+    }
+
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
