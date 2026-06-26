@@ -1,0 +1,38 @@
+# Documents and generated assets
+.gitignore
+AGENTS.md
+docbranch_mockup.html
+docbranch_mockup.test.js
+문서/
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+
+# Java / Spring Boot
+build/
+target/
+.gradle/
+
+# Local uploads and logs
+uploads/
+*.log
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
