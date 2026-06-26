@@ -98,4 +98,12 @@ public class DocumentDetail {
     public void delete(OffsetDateTime deletedAt) {
         this.deletedAt = deletedAt;
     }
+
+    public void registerVersion(DocumentVersion documentVersion, OffsetDateTime updatedAt) {
+        if (this.rootVersion == null) {
+            this.rootVersion = documentVersion;
+        }
+        this.finalVersion = documentVersion;
+        this.updatedAt = updatedAt;
+    }
 }

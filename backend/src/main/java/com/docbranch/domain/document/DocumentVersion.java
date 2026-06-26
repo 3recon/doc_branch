@@ -37,6 +37,12 @@ public class DocumentVersion {
     @Column(name = "version_number", nullable = false)
     private Integer versionNumber;
 
+    @Column(name = "title", nullable = false, length = 150)
+    private String title;
+
+    @Column(name = "content", nullable = false, columnDefinition = "TEXT")
+    private String content;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "version_type", nullable = false, length = 30)
     private DocumentVersionType versionType = DocumentVersionType.REVISION;
@@ -68,4 +74,27 @@ public class DocumentVersion {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "deleted_by")
     private User deletedBy;
+
+    public static DocumentVersion create(
+            DocumentDetail documentDetail,
+            Integer versionNumber,
+            String title,
+            String content,
+            DocumentVersionType versionType,
+            User createdBy,
+            OffsetDateTime now
+    ) {
+        DocumentVersion documentVersion = new DocumentVersion();
+        documentVersion.documentDetail = documentDetail;
+        documentVersion.versionNumber = versionNumber;
+        documentVersion.title = title;
+        documentVersion.content = content;
+        documentVersion.versionType = versionType;
+        documentVersion.status = DocumentStatus.DRAFT;
+        documentVersion.uploadedBy = createdBy;
+        documentVersion.lastModifiedBy = createdBy;
+        documentVersion.createdAt = now;
+        documentVersion.updatedAt = now;
+        return documentVersion;
+    }
 }
