@@ -58,6 +58,16 @@ public class ProjectService {
         return toDetailResponse(project);
     }
 
+    @Transactional
+    public void deleteProject(UUID projectId, ProjectDeleteRequest request) {
+        Project project = projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        User deletedBy = userRepository.findById(request.deletedByUserId())
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        project.delete(deletedBy, OffsetDateTime.now());
+    }
+
     public List<ProjectSummaryResponse> getProjects() {
         return projectRepository.findByDeletedAtIsNullOrderByUpdatedAtDesc()
                 .stream()

@@ -12,7 +12,9 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,6 +34,23 @@ class ProjectControllerTest {
 
     @MockitoBean
     private ProjectService projectService;
+
+    @Test
+    void deleteProjectReturnsNoContent() throws Exception {
+        UUID projectId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        UUID deletedByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+
+        mockMvc.perform(delete("/api/projects/{projectId}", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "deletedByUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                                }
+                                """))
+                .andExpect(status().isNoContent());
+
+        verify(projectService).deleteProject(projectId, new ProjectDeleteRequest(deletedByUserId));
+    }
 
     @Test
     void updateProjectReturnsUpdatedProject() throws Exception {
