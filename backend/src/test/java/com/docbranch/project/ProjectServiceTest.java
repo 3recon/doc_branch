@@ -40,6 +40,53 @@ class ProjectServiceTest {
     );
 
     @Test
+    void updateProjectChangesProjectBasicInfo() {
+        UUID projectId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-25T09:00:00+09:00");
+        OffsetDateTime previousUpdatedAt = OffsetDateTime.parse("2026-06-25T10:00:00+09:00");
+        Project project = project(
+                projectId,
+                "Original Project",
+                "Original description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                createdAt,
+                previousUpdatedAt
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+
+        ProjectDetailResponse response = projectService.updateProject(
+                projectId,
+                new ProjectUpdateRequest("Updated Project", "Updated description")
+        );
+
+        assertThat(project.getName()).isEqualTo("Updated Project");
+        assertThat(project.getDescription()).isEqualTo("Updated description");
+        assertThat(project.getUpdatedAt()).isAfter(previousUpdatedAt);
+        assertThat(response.projectId()).isEqualTo(projectId);
+        assertThat(response.name()).isEqualTo("Updated Project");
+        assertThat(response.description()).isEqualTo("Updated description");
+        assertThat(response.status()).isEqualTo("IN_PROGRESS");
+        assertThat(response.ownerName()).isEqualTo("Owner");
+        assertThat(response.createdAt()).isEqualTo(createdAt);
+        assertThat(response.updatedAt()).isEqualTo(project.getUpdatedAt());
+    }
+
+    @Test
+    void updateProjectThrowsBusinessExceptionWhenProjectDoesNotExist() {
+        UUID projectId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.updateProject(
+                projectId,
+                new ProjectUpdateRequest("Updated Project", "Updated description")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
+    }
+
+    @Test
     void createProjectSavesProjectAndProjectAdminMember() {
         UUID ownerUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         UUID projectId = UUID.fromString("11111111-1111-1111-1111-111111111111");

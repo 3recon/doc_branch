@@ -14,6 +14,7 @@ import java.util.UUID;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -31,6 +32,44 @@ class ProjectControllerTest {
 
     @MockitoBean
     private ProjectService projectService;
+
+    @Test
+    void updateProjectReturnsUpdatedProject() throws Exception {
+        UUID projectId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-25T09:00:00+09:00");
+        OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
+        when(projectService.updateProject(
+                projectId,
+                new ProjectUpdateRequest("Updated Project", "Updated description")
+        )).thenReturn(
+                new ProjectDetailResponse(
+                        projectId,
+                        "Updated Project",
+                        "Updated description",
+                        "IN_PROGRESS",
+                        "Owner",
+                        createdAt,
+                        updatedAt
+                )
+        );
+
+        mockMvc.perform(patch("/api/projects/{projectId}", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Updated Project",
+                                  "description": "Updated description"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$.name").value("Updated Project"))
+                .andExpect(jsonPath("$.description").value("Updated description"))
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.ownerName").value("Owner"))
+                .andExpect(jsonPath("$.createdAt").value("2026-06-25T09:00:00+09:00"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-06-26T10:00:00+09:00"));
+    }
 
     @Test
     void createProjectReturnsCreatedProject() throws Exception {

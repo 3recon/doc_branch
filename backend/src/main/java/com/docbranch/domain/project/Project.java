@@ -67,4 +67,10 @@ public class Project {
         project.updatedAt = now;
         return project;
     }
+
+    public void updateBasicInfo(String name, String description, OffsetDateTime updatedAt) {
+        this.name = name;
+        this.description = description;
+        this.updatedAt = updatedAt;
+    }
 }

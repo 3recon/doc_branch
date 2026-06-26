@@ -49,6 +49,15 @@ public class ProjectService {
         return toDetailResponse(project);
     }
 
+    @Transactional
+    public ProjectDetailResponse updateProject(UUID projectId, ProjectUpdateRequest request) {
+        Project project = projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        project.updateBasicInfo(request.name(), request.description(), OffsetDateTime.now());
+
+        return toDetailResponse(project);
+    }
+
     public List<ProjectSummaryResponse> getProjects() {
         return projectRepository.findByDeletedAtIsNullOrderByUpdatedAtDesc()
                 .stream()
