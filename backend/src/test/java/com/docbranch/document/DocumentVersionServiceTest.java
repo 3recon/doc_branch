@@ -220,6 +220,81 @@ class DocumentVersionServiceTest {
         assertThat(responses.get(1).versionType()).isEqualTo("REVISION");
     }
 
+    @Test
+    void getDocumentVersionReturnsVersionInProjectDocument() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User createdBy = user(createdByUserId, "Owner");
+        DocumentVersion documentVersion = documentVersion(
+                documentVersionId,
+                documentDetail,
+                1,
+                "First draft",
+                "Initial content",
+                createdBy
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.of(documentVersion));
+
+        DocumentVersionResponse response = documentVersionService.getDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId
+        );
+
+        assertThat(response.documentVersionId()).isEqualTo(documentVersionId);
+        assertThat(response.documentDetailId()).isEqualTo(documentDetailId);
+        assertThat(response.versionNumber()).isEqualTo(1);
+        assertThat(response.title()).isEqualTo("First draft");
+        assertThat(response.content()).isEqualTo("Initial content");
+        assertThat(response.versionType()).isEqualTo("INITIAL");
+        assertThat(response.status()).isEqualTo("DRAFT");
+        assertThat(response.createdByUserId()).isEqualTo(createdByUserId);
+        assertThat(response.createdByName()).isEqualTo("Owner");
+    }
+
+    @Test
+    void getDocumentVersionThrowsBusinessExceptionWhenVersionDoesNotExistInDocument() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentVersionService.getDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.DOCUMENT_VERSION_NOT_FOUND);
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);
