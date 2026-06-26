@@ -346,6 +346,42 @@ class DocumentVersionServiceTest {
         assertThat(response.updatedAt()).isEqualTo(documentVersion.getUpdatedAt());
     }
 
+    @Test
+    void deleteDocumentVersionSoftDeletesVersion() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User createdBy = user(createdByUserId, "Owner");
+        DocumentVersion documentVersion = documentVersion(
+                documentVersionId,
+                documentDetail,
+                1,
+                "First draft",
+                "Initial content",
+                createdBy
+        );
+        OffsetDateTime beforeDeletedAt = documentVersion.getCreatedAt();
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.of(documentVersion));
+
+        documentVersionService.deleteDocumentVersion(projectId, documentDetailId, documentVersionId);
+
+        assertThat(documentVersion.getDeletedAt()).isNotNull();
+        assertThat(documentVersion.getDeletedAt()).isAfter(beforeDeletedAt);
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);

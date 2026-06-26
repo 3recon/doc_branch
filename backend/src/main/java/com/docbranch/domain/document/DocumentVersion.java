@@ -103,4 +103,8 @@ public class DocumentVersion {
         this.content = content;
         this.updatedAt = updatedAt;
     }
+
+    public void delete(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
 }

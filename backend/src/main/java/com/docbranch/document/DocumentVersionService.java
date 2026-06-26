@@ -126,6 +126,22 @@ public class DocumentVersionService {
         return toResponse(documentVersion);
     }
 
+    @Transactional
+    public void deleteDocumentVersion(UUID projectId, UUID documentDetailId, UUID documentVersionId) {
+        findActiveProject(projectId);
+        documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+        DocumentVersion documentVersion = documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                )
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_VERSION_NOT_FOUND));
+
+        documentVersion.delete(OffsetDateTime.now());
+    }
+
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
