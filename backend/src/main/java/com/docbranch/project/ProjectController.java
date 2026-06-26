@@ -73,6 +73,22 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/{projectId}/invitations")
+    public ResponseEntity<ProjectInvitationResponse> createProjectInvitation(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectInvitationCreateRequest request
+    ) {
+        ProjectInvitationResponse response = projectService.createProjectInvitation(projectId, request);
+        return ResponseEntity
+                .created(URI.create("/api/projects/" + projectId + "/invitations/" + response.invitationId()))
+                .body(response);
+    }
+
+    @GetMapping("/{projectId}/invitations")
+    public List<ProjectInvitationResponse> getProjectInvitations(@PathVariable UUID projectId) {
+        return projectService.getProjectInvitations(projectId);
+    }
+
     @GetMapping
     public List<ProjectSummaryResponse> getProjects() {
         return projectService.getProjects();

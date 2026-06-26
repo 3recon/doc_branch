@@ -3,10 +3,13 @@ package com.docbranch.project;
 import com.docbranch.common.exception.BusinessException;
 import com.docbranch.common.exception.ErrorCode;
 import com.docbranch.domain.project.Project;
+import com.docbranch.domain.project.ProjectInvitation;
 import com.docbranch.domain.project.ProjectMember;
 import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.project.ProjectStatus;
+import com.docbranch.domain.project.InvitationStatus;
 import com.docbranch.domain.user.User;
+import com.docbranch.repository.project.ProjectInvitationRepository;
 import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
 import com.docbranch.repository.user.UserRepository;
@@ -32,12 +35,112 @@ class ProjectServiceTest {
 
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
     private final ProjectMemberRepository projectMemberRepository = mock(ProjectMemberRepository.class);
+    private final ProjectInvitationRepository projectInvitationRepository = mock(ProjectInvitationRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final ProjectService projectService = new ProjectService(
             projectRepository,
             projectMemberRepository,
+            projectInvitationRepository,
             userRepository
     );
+
+    @Test
+    void createProjectInvitationSavesPendingInvitation() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitationCreateRequest request = new ProjectInvitationCreateRequest(
+                "member@example.com",
+                "PARTICIPANT",
+                expiresAt
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.save(any(ProjectInvitation.class))).thenAnswer(invocation -> {
+            ProjectInvitation invitation = invocation.getArgument(0);
+            ReflectionTestUtils.setField(invitation, "invitationId", invitationId);
+            return invitation;
+        });
+
+        ProjectInvitationResponse response = projectService.createProjectInvitation(projectId, request);
+
+        ArgumentCaptor<ProjectInvitation> invitationCaptor = ArgumentCaptor.forClass(ProjectInvitation.class);
+        verify(projectInvitationRepository).save(invitationCaptor.capture());
+        ProjectInvitation savedInvitation = invitationCaptor.getValue();
+        assertThat(savedInvitation.getProject()).isSameAs(project);
+        assertThat(savedInvitation.getInvitedEmail()).isEqualTo("member@example.com");
+        assertThat(savedInvitation.getRole()).isEqualTo(ProjectRole.PARTICIPANT);
+        assertThat(savedInvitation.getStatus()).isEqualTo(InvitationStatus.PENDING);
+        assertThat(savedInvitation.getExpiresAt()).isEqualTo(expiresAt);
+
+        assertThat(response.invitationId()).isEqualTo(invitationId);
+        assertThat(response.projectId()).isEqualTo(projectId);
+        assertThat(response.invitedEmail()).isEqualTo("member@example.com");
+        assertThat(response.role()).isEqualTo("PARTICIPANT");
+        assertThat(response.status()).isEqualTo("PENDING");
+        assertThat(response.expiresAt()).isEqualTo(expiresAt);
+    }
+
+    @Test
+    void createProjectInvitationThrowsBusinessExceptionWhenProjectDoesNotExist() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        ProjectInvitationCreateRequest request = new ProjectInvitationCreateRequest(
+                "member@example.com",
+                "PARTICIPANT",
+                OffsetDateTime.parse("2026-07-03T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.createProjectInvitation(projectId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
+    }
+
+    @Test
+    void getProjectInvitationsReturnsProjectInvitations() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitation invitation = projectInvitation(
+                invitationId,
+                project,
+                "member@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.PENDING,
+                expiresAt
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByProjectProjectIdOrderByExpiresAtAsc(projectId))
+                .thenReturn(List.of(invitation));
+
+        List<ProjectInvitationResponse> invitations = projectService.getProjectInvitations(projectId);
+
+        assertThat(invitations).hasSize(1);
+        assertThat(invitations.getFirst().invitationId()).isEqualTo(invitationId);
+        assertThat(invitations.getFirst().projectId()).isEqualTo(projectId);
+        assertThat(invitations.getFirst().invitedEmail()).isEqualTo("member@example.com");
+        assertThat(invitations.getFirst().role()).isEqualTo("PARTICIPANT");
+        assertThat(invitations.getFirst().status()).isEqualTo("PENDING");
+        assertThat(invitations.getFirst().expiresAt()).isEqualTo(expiresAt);
+    }
 
     @Test
     void getProjectMembersReturnsActiveMembers() {
@@ -452,5 +555,23 @@ class ProjectServiceTest {
         ReflectionTestUtils.setField(projectMember, "role", role);
         ReflectionTestUtils.setField(projectMember, "joinedAt", joinedAt);
         return projectMember;
+    }
+
+    private ProjectInvitation projectInvitation(
+            UUID invitationId,
+            Project project,
+            String invitedEmail,
+            ProjectRole role,
+            InvitationStatus status,
+            OffsetDateTime expiresAt
+    ) {
+        ProjectInvitation invitation = BeanUtils.instantiateClass(ProjectInvitation.class);
+        ReflectionTestUtils.setField(invitation, "invitationId", invitationId);
+        ReflectionTestUtils.setField(invitation, "project", project);
+        ReflectionTestUtils.setField(invitation, "invitedEmail", invitedEmail);
+        ReflectionTestUtils.setField(invitation, "role", role);
+        ReflectionTestUtils.setField(invitation, "status", status);
+        ReflectionTestUtils.setField(invitation, "expiresAt", expiresAt);
+        return invitation;
     }
 }
