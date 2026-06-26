@@ -73,4 +73,9 @@ public class Project {
         this.description = description;
         this.updatedAt = updatedAt;
     }
+
+    public void delete(User deletedBy, OffsetDateTime deletedAt) {
+        this.deletedBy = deletedBy;
+        this.deletedAt = deletedAt;
+    }
 }

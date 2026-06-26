@@ -2,6 +2,7 @@ package com.docbranch.project;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -38,6 +39,15 @@ public class ProjectController {
             @Valid @RequestBody ProjectUpdateRequest request
     ) {
         return projectService.updateProject(projectId, request);
+    }
+
+    @DeleteMapping("/{projectId}")
+    public ResponseEntity<Void> deleteProject(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectDeleteRequest request
+    ) {
+        projectService.deleteProject(projectId, request);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping

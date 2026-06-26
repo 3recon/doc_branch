@@ -40,6 +40,69 @@ class ProjectServiceTest {
     );
 
     @Test
+    void deleteProjectSoftDeletesProjectWithDeletedBy() {
+        UUID projectId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        UUID deletedByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        User deletedBy = user(deletedByUserId, "Owner");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(userRepository.findById(deletedByUserId)).thenReturn(Optional.of(deletedBy));
+
+        projectService.deleteProject(projectId, new ProjectDeleteRequest(deletedByUserId));
+
+        assertThat(project.getDeletedAt()).isNotNull();
+        assertThat(project.getDeletedBy()).isSameAs(deletedBy);
+    }
+
+    @Test
+    void deleteProjectThrowsBusinessExceptionWhenProjectDoesNotExist() {
+        UUID projectId = UUID.fromString("77777777-7777-7777-7777-777777777777");
+        UUID deletedByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.deleteProject(
+                projectId,
+                new ProjectDeleteRequest(deletedByUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
+    }
+
+    @Test
+    void deleteProjectThrowsBusinessExceptionWhenDeletedByDoesNotExist() {
+        UUID projectId = UUID.fromString("88888888-8888-8888-8888-888888888888");
+        UUID deletedByUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(userRepository.findById(deletedByUserId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.deleteProject(
+                projectId,
+                new ProjectDeleteRequest(deletedByUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
     void updateProjectChangesProjectBasicInfo() {
         UUID projectId = UUID.fromString("44444444-4444-4444-4444-444444444444");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-25T09:00:00+09:00");
