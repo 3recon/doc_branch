@@ -15,8 +15,10 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -191,5 +193,20 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.createdByName").value("Owner"))
                 .andExpect(jsonPath("$.createdAt").value("2026-06-26T09:00:00+09:00"))
                 .andExpect(jsonPath("$.updatedAt").value("2026-06-26T10:00:00+09:00"));
+    }
+
+    @Test
+    void deleteDocumentReturnsNoContent() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+
+        mockMvc.perform(delete(
+                        "/api/projects/{projectId}/documents/{documentDetailId}",
+                        projectId,
+                        documentDetailId
+                ))
+                .andExpect(status().isNoContent());
+
+        verify(documentService).deleteDocument(projectId, documentDetailId);
     }
 }

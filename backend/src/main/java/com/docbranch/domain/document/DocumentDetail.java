@@ -94,4 +94,8 @@ public class DocumentDetail {
         this.description = description;
         this.updatedAt = updatedAt;
     }
+
+    public void delete(OffsetDateTime deletedAt) {
+        this.deletedAt = deletedAt;
+    }
 }
