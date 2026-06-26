@@ -2,6 +2,7 @@ package com.docbranch.document;
 
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -70,5 +71,15 @@ public class DocumentVersionController {
             @Valid @RequestBody DocumentVersionUpdateRequest request
     ) {
         return documentVersionService.updateDocumentVersion(projectId, documentDetailId, documentVersionId, request);
+    }
+
+    @DeleteMapping("/{documentVersionId}")
+    public ResponseEntity<Void> deleteDocumentVersion(
+            @PathVariable UUID projectId,
+            @PathVariable UUID documentDetailId,
+            @PathVariable UUID documentVersionId
+    ) {
+        documentVersionService.deleteDocumentVersion(projectId, documentDetailId, documentVersionId);
+        return ResponseEntity.noContent().build();
     }
 }
