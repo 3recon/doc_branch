@@ -97,4 +97,10 @@ public class DocumentVersion {
         documentVersion.updatedAt = now;
         return documentVersion;
     }
+
+    public void updateContent(String title, String content, OffsetDateTime updatedAt) {
+        this.title = title;
+        this.content = content;
+        this.updatedAt = updatedAt;
+    }
 }
