@@ -10,12 +10,14 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -83,5 +85,58 @@ class DocumentVersionControllerTest {
                 .andExpect(jsonPath("$.createdByName").value("Owner"))
                 .andExpect(jsonPath("$.createdAt").value("2026-06-26T09:00:00+09:00"))
                 .andExpect(jsonPath("$.updatedAt").value("2026-06-26T09:00:00+09:00"));
+    }
+
+    @Test
+    void getDocumentVersionsReturnsVersionsInVersionNumberOrder() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        when(documentVersionService.getDocumentVersions(projectId, documentDetailId)).thenReturn(List.of(
+                new DocumentVersionResponse(
+                        UUID.fromString("22222222-2222-2222-2222-222222222222"),
+                        documentDetailId,
+                        1,
+                        "First draft",
+                        "Initial content",
+                        "INITIAL",
+                        "DRAFT",
+                        createdByUserId,
+                        "Owner",
+                        createdAt,
+                        createdAt
+                ),
+                new DocumentVersionResponse(
+                        UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                        documentDetailId,
+                        2,
+                        "Second draft",
+                        "Updated content",
+                        "REVISION",
+                        "DRAFT",
+                        createdByUserId,
+                        "Owner",
+                        createdAt.plusHours(1),
+                        createdAt.plusHours(1)
+                )
+        ));
+
+        mockMvc.perform(get(
+                        "/api/projects/{projectId}/documents/{documentDetailId}/versions",
+                        projectId,
+                        documentDetailId
+                ))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].documentDetailId").value(documentDetailId.toString()))
+                .andExpect(jsonPath("$[0].versionNumber").value(1))
+                .andExpect(jsonPath("$[0].title").value("First draft"))
+                .andExpect(jsonPath("$[0].content").value("Initial content"))
+                .andExpect(jsonPath("$[0].versionType").value("INITIAL"))
+                .andExpect(jsonPath("$[1].documentDetailId").value(documentDetailId.toString()))
+                .andExpect(jsonPath("$[1].versionNumber").value(2))
+                .andExpect(jsonPath("$[1].title").value("Second draft"))
+                .andExpect(jsonPath("$[1].content").value("Updated content"))
+                .andExpect(jsonPath("$[1].versionType").value("REVISION"));
     }
 }
