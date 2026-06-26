@@ -46,4 +46,19 @@ public class ProjectInvitation {
 
     @Column(name = "expires_at", nullable = false)
     private OffsetDateTime expiresAt;
+
+    public static ProjectInvitation create(
+            Project project,
+            String invitedEmail,
+            ProjectRole role,
+            OffsetDateTime expiresAt
+    ) {
+        ProjectInvitation invitation = new ProjectInvitation();
+        invitation.project = project;
+        invitation.invitedEmail = invitedEmail;
+        invitation.role = role;
+        invitation.status = InvitationStatus.PENDING;
+        invitation.expiresAt = expiresAt;
+        return invitation;
+    }
 }

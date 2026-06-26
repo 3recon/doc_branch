@@ -12,6 +12,8 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -34,6 +36,69 @@ class ProjectControllerTest {
 
     @MockitoBean
     private ProjectService projectService;
+
+    @Test
+    void createProjectInvitationReturnsCreatedInvitation() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
+        when(projectService.createProjectInvitation(
+                eq(projectId),
+                any(ProjectInvitationCreateRequest.class)
+        )).thenReturn(
+                new ProjectInvitationResponse(
+                        invitationId,
+                        projectId,
+                        "member@example.com",
+                        "PARTICIPANT",
+                        "PENDING",
+                        expiresAt
+                )
+        );
+
+        mockMvc.perform(post("/api/projects/{projectId}/invitations", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "invitedEmail": "member@example.com",
+                                  "role": "PARTICIPANT",
+                                  "expiresAt": "2026-07-03T09:00:00+09:00"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.invitationId").value(invitationId.toString()))
+                .andExpect(jsonPath("$.projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$.invitedEmail").value("member@example.com"))
+                .andExpect(jsonPath("$.role").value("PARTICIPANT"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.expiresAt").value("2026-07-03T09:00:00+09:00"));
+    }
+
+    @Test
+    void getProjectInvitationsReturnsInvitations() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
+        when(projectService.getProjectInvitations(projectId)).thenReturn(List.of(
+                new ProjectInvitationResponse(
+                        invitationId,
+                        projectId,
+                        "member@example.com",
+                        "PARTICIPANT",
+                        "PENDING",
+                        expiresAt
+                )
+        ));
+
+        mockMvc.perform(get("/api/projects/{projectId}/invitations", projectId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].invitationId").value(invitationId.toString()))
+                .andExpect(jsonPath("$[0].projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$[0].invitedEmail").value("member@example.com"))
+                .andExpect(jsonPath("$[0].role").value("PARTICIPANT"))
+                .andExpect(jsonPath("$[0].status").value("PENDING"))
+                .andExpect(jsonPath("$[0].expiresAt").value("2026-07-03T09:00:00+09:00"));
+    }
 
     @Test
     void getProjectMembersReturnsMembers() throws Exception {

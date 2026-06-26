@@ -3,9 +3,11 @@ package com.docbranch.project;
 import com.docbranch.common.exception.BusinessException;
 import com.docbranch.common.exception.ErrorCode;
 import com.docbranch.domain.project.Project;
+import com.docbranch.domain.project.ProjectInvitation;
 import com.docbranch.domain.project.ProjectMember;
 import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.user.User;
+import com.docbranch.repository.project.ProjectInvitationRepository;
 import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
 import com.docbranch.repository.user.UserRepository;
@@ -22,15 +24,18 @@ public class ProjectService {
 
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectInvitationRepository projectInvitationRepository;
     private final UserRepository userRepository;
 
     public ProjectService(
             ProjectRepository projectRepository,
             ProjectMemberRepository projectMemberRepository,
+            ProjectInvitationRepository projectInvitationRepository,
             UserRepository userRepository
     ) {
         this.projectRepository = projectRepository;
         this.projectMemberRepository = projectMemberRepository;
+        this.projectInvitationRepository = projectInvitationRepository;
         this.userRepository = userRepository;
     }
 
@@ -97,6 +102,30 @@ public class ProjectService {
         projectMember.remove(OffsetDateTime.now());
     }
 
+    @Transactional
+    public ProjectInvitationResponse createProjectInvitation(
+            UUID projectId,
+            ProjectInvitationCreateRequest request
+    ) {
+        Project project = findActiveProject(projectId);
+        ProjectInvitation invitation = projectInvitationRepository.save(ProjectInvitation.create(
+                project,
+                request.invitedEmail(),
+                ProjectRole.valueOf(request.role()),
+                request.expiresAt()
+        ));
+
+        return toInvitationResponse(invitation);
+    }
+
+    public List<ProjectInvitationResponse> getProjectInvitations(UUID projectId) {
+        validateProjectExists(projectId);
+        return projectInvitationRepository.findByProjectProjectIdOrderByExpiresAtAsc(projectId)
+                .stream()
+                .map(this::toInvitationResponse)
+                .toList();
+    }
+
     public List<ProjectSummaryResponse> getProjects() {
         return projectRepository.findByDeletedAtIsNullOrderByUpdatedAtDesc()
                 .stream()
@@ -112,7 +141,11 @@ public class ProjectService {
     }
 
     private void validateProjectExists(UUID projectId) {
-        projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
+        findActiveProject(projectId);
+    }
+
+    private Project findActiveProject(UUID projectId) {
+        return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
     }
 
@@ -153,6 +186,17 @@ public class ProjectService {
                 user.getEmail(),
                 projectMember.getRole().name(),
                 projectMember.getJoinedAt()
+        );
+    }
+
+    private ProjectInvitationResponse toInvitationResponse(ProjectInvitation invitation) {
+        return new ProjectInvitationResponse(
+                invitation.getInvitationId(),
+                invitation.getProject().getProjectId(),
+                invitation.getInvitedEmail(),
+                invitation.getRole().name(),
+                invitation.getStatus().name(),
+                invitation.getExpiresAt()
         );
     }
 }
