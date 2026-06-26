@@ -19,6 +19,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -172,6 +173,51 @@ class DocumentVersionServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND);
+    }
+
+    @Test
+    void getDocumentVersionsReturnsNonDeletedVersionsInVersionNumberOrder() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User createdBy = user(createdByUserId, "Owner");
+        DocumentVersion firstVersion = documentVersion(
+                UUID.fromString("22222222-2222-2222-2222-222222222222"),
+                documentDetail,
+                1,
+                "First draft",
+                "Initial content",
+                createdBy
+        );
+        DocumentVersion secondVersion = documentVersion(
+                UUID.fromString("33333333-3333-3333-3333-333333333333"),
+                documentDetail,
+                2,
+                "Second draft",
+                "Updated content",
+                createdBy
+        );
+        ReflectionTestUtils.setField(secondVersion, "versionType", DocumentVersionType.REVISION);
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDeletedAtIsNullOrderByVersionNumberAsc(documentDetailId))
+                .thenReturn(List.of(firstVersion, secondVersion));
+
+        List<DocumentVersionResponse> responses = documentVersionService.getDocumentVersions(projectId, documentDetailId);
+
+        assertThat(responses).hasSize(2);
+        assertThat(responses.get(0).versionNumber()).isEqualTo(1);
+        assertThat(responses.get(0).title()).isEqualTo("First draft");
+        assertThat(responses.get(0).versionType()).isEqualTo("INITIAL");
+        assertThat(responses.get(1).versionNumber()).isEqualTo(2);
+        assertThat(responses.get(1).title()).isEqualTo("Second draft");
+        assertThat(responses.get(1).versionType()).isEqualTo("REVISION");
     }
 
     private Project project(UUID projectId) {

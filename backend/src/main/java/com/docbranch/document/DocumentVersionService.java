@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -68,6 +69,19 @@ public class DocumentVersionService {
         documentDetail.registerVersion(documentVersion, now);
 
         return toResponse(documentVersion);
+    }
+
+    public List<DocumentVersionResponse> getDocumentVersions(UUID projectId, UUID documentDetailId) {
+        findActiveProject(projectId);
+        documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+
+        return documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDeletedAtIsNullOrderByVersionNumberAsc(documentDetailId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
     }
 
     private Project findActiveProject(UUID projectId) {
