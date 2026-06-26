@@ -51,4 +51,13 @@ public class DocumentVersionController {
     ) {
         return documentVersionService.getDocumentVersions(projectId, documentDetailId);
     }
+
+    @GetMapping("/{documentVersionId}")
+    public DocumentVersionResponse getDocumentVersion(
+            @PathVariable UUID projectId,
+            @PathVariable UUID documentDetailId,
+            @PathVariable UUID documentVersionId
+    ) {
+        return documentVersionService.getDocumentVersion(projectId, documentDetailId, documentVersionId);
+    }
 }

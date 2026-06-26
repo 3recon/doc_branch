@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface DocumentVersionRepository extends JpaRepository<DocumentVersion, UUID> {
@@ -20,5 +21,10 @@ public interface DocumentVersionRepository extends JpaRepository<DocumentVersion
 
     List<DocumentVersion> findByDocumentDetailDocumentDetailIdAndDeletedAtIsNullOrderByVersionNumberAsc(
             UUID documentDetailId
+    );
+
+    Optional<DocumentVersion> findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+            UUID documentDetailId,
+            UUID documentVersionId
     );
 }

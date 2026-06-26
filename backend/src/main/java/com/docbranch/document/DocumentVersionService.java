@@ -84,6 +84,25 @@ public class DocumentVersionService {
                 .toList();
     }
 
+    public DocumentVersionResponse getDocumentVersion(
+            UUID projectId,
+            UUID documentDetailId,
+            UUID documentVersionId
+    ) {
+        findActiveProject(projectId);
+        documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+        DocumentVersion documentVersion = documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                )
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_VERSION_NOT_FOUND));
+
+        return toResponse(documentVersion);
+    }
+
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
