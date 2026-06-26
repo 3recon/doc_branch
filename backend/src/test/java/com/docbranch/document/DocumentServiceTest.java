@@ -182,6 +182,45 @@ class DocumentServiceTest {
                 .isEqualTo(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND);
     }
 
+    @Test
+    void updateDocumentUpdatesProjectDocumentBasicInfo() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        Project project = project(projectId);
+        User createdBy = user(createdByUserId, "Owner");
+        DocumentDetail documentDetail = documentDetail(
+                documentDetailId,
+                project,
+                "Guide",
+                "Project guide",
+                createdBy,
+                createdAt
+        );
+        DocumentUpdateRequest request = new DocumentUpdateRequest("Updated Guide", "Updated project guide");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+
+        DocumentResponse response = documentService.updateDocument(projectId, documentDetailId, request);
+
+        assertThat(documentDetail.getName()).isEqualTo("Updated Guide");
+        assertThat(documentDetail.getDescription()).isEqualTo("Updated project guide");
+        assertThat(documentDetail.getUpdatedAt()).isAfter(createdAt);
+        assertThat(response.documentDetailId()).isEqualTo(documentDetailId);
+        assertThat(response.projectId()).isEqualTo(projectId);
+        assertThat(response.name()).isEqualTo("Updated Guide");
+        assertThat(response.description()).isEqualTo("Updated project guide");
+        assertThat(response.status()).isEqualTo("DRAFT");
+        assertThat(response.createdByUserId()).isEqualTo(createdByUserId);
+        assertThat(response.createdByName()).isEqualTo("Owner");
+        assertThat(response.createdAt()).isEqualTo(createdAt);
+        assertThat(response.updatedAt()).isEqualTo(documentDetail.getUpdatedAt());
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);

@@ -68,6 +68,22 @@ public class DocumentService {
         return toResponse(documentDetail);
     }
 
+    @Transactional
+    public DocumentResponse updateDocument(
+            UUID projectId,
+            UUID documentDetailId,
+            DocumentUpdateRequest request
+    ) {
+        findActiveProject(projectId);
+        DocumentDetail documentDetail = documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+
+        documentDetail.updateBasicInfo(request.name(), request.description(), OffsetDateTime.now());
+
+        return toResponse(documentDetail);
+    }
+
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));

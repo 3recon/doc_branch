@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -141,5 +142,54 @@ class DocumentControllerTest {
                 .andExpect(jsonPath("$.createdByName").value("Owner"))
                 .andExpect(jsonPath("$.createdAt").value("2026-06-26T09:00:00+09:00"))
                 .andExpect(jsonPath("$.updatedAt").value("2026-06-26T09:00:00+09:00"));
+    }
+
+    @Test
+    void updateDocumentReturnsUpdatedProjectDocument() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
+        when(documentService.updateDocument(
+                eq(projectId),
+                eq(documentDetailId),
+                any(DocumentUpdateRequest.class)
+        )).thenReturn(
+                new DocumentResponse(
+                        documentDetailId,
+                        projectId,
+                        "Updated Guide",
+                        "Updated project guide",
+                        "DRAFT",
+                        createdByUserId,
+                        "Owner",
+                        createdAt,
+                        updatedAt
+                )
+        );
+
+        mockMvc.perform(patch(
+                        "/api/projects/{projectId}/documents/{documentDetailId}",
+                        projectId,
+                        documentDetailId
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "name": "Updated Guide",
+                                  "description": "Updated project guide"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.documentDetailId").value(documentDetailId.toString()))
+                .andExpect(jsonPath("$.projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$.name").value("Updated Guide"))
+                .andExpect(jsonPath("$.description").value("Updated project guide"))
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.createdByUserId").value(createdByUserId.toString()))
+                .andExpect(jsonPath("$.createdByName").value("Owner"))
+                .andExpect(jsonPath("$.createdAt").value("2026-06-26T09:00:00+09:00"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-06-26T10:00:00+09:00"));
     }
 }
