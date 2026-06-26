@@ -221,6 +221,33 @@ class DocumentServiceTest {
         assertThat(response.updatedAt()).isEqualTo(documentDetail.getUpdatedAt());
     }
 
+    @Test
+    void deleteDocumentSoftDeletesProjectDocument() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        Project project = project(projectId);
+        User createdBy = user(UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"), "Owner");
+        DocumentDetail documentDetail = documentDetail(
+                documentDetailId,
+                project,
+                "Guide",
+                "Project guide",
+                createdBy,
+                createdAt
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+
+        documentService.deleteDocument(projectId, documentDetailId);
+
+        assertThat(documentDetail.getDeletedAt()).isNotNull();
+        assertThat(documentDetail.getDeletedAt()).isAfter(createdAt);
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);

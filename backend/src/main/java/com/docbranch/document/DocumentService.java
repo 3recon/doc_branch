@@ -84,6 +84,16 @@ public class DocumentService {
         return toResponse(documentDetail);
     }
 
+    @Transactional
+    public void deleteDocument(UUID projectId, UUID documentDetailId) {
+        findActiveProject(projectId);
+        DocumentDetail documentDetail = documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+
+        documentDetail.delete(OffsetDateTime.now());
+    }
+
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
