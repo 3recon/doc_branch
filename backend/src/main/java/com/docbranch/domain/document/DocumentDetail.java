@@ -70,4 +70,22 @@ public class DocumentDetail {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "deleted_by")
     private User deletedBy;
+
+    public static DocumentDetail create(
+            Project project,
+            String name,
+            String description,
+            User createdBy,
+            OffsetDateTime now
+    ) {
+        DocumentDetail documentDetail = new DocumentDetail();
+        documentDetail.project = project;
+        documentDetail.name = name;
+        documentDetail.description = description;
+        documentDetail.status = DocumentStatus.DRAFT;
+        documentDetail.createdBy = createdBy;
+        documentDetail.createdAt = now;
+        documentDetail.updatedAt = now;
+        return documentDetail;
+    }
 }
