@@ -25,6 +25,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
@@ -43,6 +44,121 @@ class ProjectServiceTest {
             projectInvitationRepository,
             userRepository
     );
+
+    @Test
+    void acceptProjectInvitationAcceptsPendingInvitationAndAddsMember() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitation invitation = projectInvitation(
+                invitationId,
+                project,
+                "member@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.PENDING,
+                OffsetDateTime.parse("2026-07-03T09:00:00+09:00")
+        );
+        User user = user(userId, "Member", "member@example.com");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectIdAndStatus(invitationId, projectId, InvitationStatus.PENDING))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        ProjectInvitationResponse response = projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        );
+
+        assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.ACCEPTED);
+        ArgumentCaptor<ProjectMember> memberCaptor = ArgumentCaptor.forClass(ProjectMember.class);
+        verify(projectMemberRepository).save(memberCaptor.capture());
+        ProjectMember savedMember = memberCaptor.getValue();
+        assertThat(savedMember.getProject()).isSameAs(project);
+        assertThat(savedMember.getUser()).isSameAs(user);
+        assertThat(savedMember.getRole()).isEqualTo(ProjectRole.PARTICIPANT);
+        assertThat(savedMember.getJoinedAt()).isNotNull();
+        assertThat(response.status()).isEqualTo("ACCEPTED");
+    }
+
+    @Test
+    void acceptProjectInvitationThrowsBusinessExceptionWhenInvitationDoesNotExist() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectIdAndStatus(invitationId, projectId, InvitationStatus.PENDING))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_INVITATION_NOT_FOUND);
+    }
+
+    @Test
+    void expireProjectInvitationsExpiresPendingInvitationsPastExpiresAt() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitation first = projectInvitation(
+                UUID.fromString("12345678-1234-1234-1234-123456789012"),
+                project,
+                "first@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.PENDING,
+                OffsetDateTime.parse("2026-06-01T09:00:00+09:00")
+        );
+        ProjectInvitation second = projectInvitation(
+                UUID.fromString("12345678-1234-1234-1234-123456789013"),
+                project,
+                "second@example.com",
+                ProjectRole.READ_ONLY,
+                InvitationStatus.PENDING,
+                OffsetDateTime.parse("2026-06-02T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByProjectProjectIdAndStatusAndExpiresAtBefore(
+                eq(projectId),
+                eq(InvitationStatus.PENDING),
+                any(OffsetDateTime.class)
+        )).thenReturn(List.of(first, second));
+
+        ProjectInvitationExpireResponse response = projectService.expireProjectInvitations(projectId);
+
+        assertThat(first.getStatus()).isEqualTo(InvitationStatus.EXPIRED);
+        assertThat(second.getStatus()).isEqualTo(InvitationStatus.EXPIRED);
+        assertThat(response.expiredCount()).isEqualTo(2);
+    }
 
     @Test
     void createProjectInvitationSavesPendingInvitation() {

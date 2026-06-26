@@ -38,6 +38,50 @@ class ProjectControllerTest {
     private ProjectService projectService;
 
     @Test
+    void acceptProjectInvitationReturnsAcceptedInvitation() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
+        when(projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        )).thenReturn(
+                new ProjectInvitationResponse(
+                        invitationId,
+                        projectId,
+                        "member@example.com",
+                        "PARTICIPANT",
+                        "ACCEPTED",
+                        expiresAt
+                )
+        );
+
+        mockMvc.perform(post("/api/projects/{projectId}/invitations/{invitationId}/accept", projectId, invitationId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "userId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.invitationId").value(invitationId.toString()))
+                .andExpect(jsonPath("$.projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$.status").value("ACCEPTED"));
+    }
+
+    @Test
+    void expireProjectInvitationsReturnsExpiredCount() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        when(projectService.expireProjectInvitations(projectId)).thenReturn(new ProjectInvitationExpireResponse(2));
+
+        mockMvc.perform(post("/api/projects/{projectId}/invitations/expire", projectId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.expiredCount").value(2));
+    }
+
+    @Test
     void createProjectInvitationReturnsCreatedInvitation() throws Exception {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");

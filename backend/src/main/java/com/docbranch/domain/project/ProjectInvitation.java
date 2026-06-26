@@ -61,4 +61,12 @@ public class ProjectInvitation {
         invitation.expiresAt = expiresAt;
         return invitation;
     }
+
+    public void accept() {
+        this.status = InvitationStatus.ACCEPTED;
+    }
+
+    public void expire() {
+        this.status = InvitationStatus.EXPIRED;
+    }
 }
