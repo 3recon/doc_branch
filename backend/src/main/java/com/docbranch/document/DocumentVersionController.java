@@ -3,6 +3,7 @@ package com.docbranch.document;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -59,5 +60,15 @@ public class DocumentVersionController {
             @PathVariable UUID documentVersionId
     ) {
         return documentVersionService.getDocumentVersion(projectId, documentDetailId, documentVersionId);
+    }
+
+    @PatchMapping("/{documentVersionId}")
+    public DocumentVersionResponse updateDocumentVersion(
+            @PathVariable UUID projectId,
+            @PathVariable UUID documentDetailId,
+            @PathVariable UUID documentVersionId,
+            @Valid @RequestBody DocumentVersionUpdateRequest request
+    ) {
+        return documentVersionService.updateDocumentVersion(projectId, documentDetailId, documentVersionId, request);
     }
 }

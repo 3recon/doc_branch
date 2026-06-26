@@ -18,6 +18,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -183,5 +184,58 @@ class DocumentVersionControllerTest {
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.createdByUserId").value(createdByUserId.toString()))
                 .andExpect(jsonPath("$.createdByName").value("Owner"));
+    }
+
+    @Test
+    void updateDocumentVersionReturnsUpdatedVersion() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
+        when(documentVersionService.updateDocumentVersion(
+                eq(projectId),
+                eq(documentDetailId),
+                eq(documentVersionId),
+                any(DocumentVersionUpdateRequest.class)
+        )).thenReturn(
+                new DocumentVersionResponse(
+                        documentVersionId,
+                        documentDetailId,
+                        1,
+                        "Updated draft",
+                        "Updated content",
+                        "INITIAL",
+                        "DRAFT",
+                        createdByUserId,
+                        "Owner",
+                        createdAt,
+                        updatedAt
+                )
+        );
+
+        mockMvc.perform(patch(
+                        "/api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}",
+                        projectId,
+                        documentDetailId,
+                        documentVersionId
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Updated draft",
+                                  "content": "Updated content"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.documentVersionId").value(documentVersionId.toString()))
+                .andExpect(jsonPath("$.documentDetailId").value(documentDetailId.toString()))
+                .andExpect(jsonPath("$.versionNumber").value(1))
+                .andExpect(jsonPath("$.title").value("Updated draft"))
+                .andExpect(jsonPath("$.content").value("Updated content"))
+                .andExpect(jsonPath("$.versionType").value("INITIAL"))
+                .andExpect(jsonPath("$.status").value("DRAFT"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-06-26T10:00:00+09:00"));
     }
 }

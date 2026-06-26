@@ -295,6 +295,57 @@ class DocumentVersionServiceTest {
                 .isEqualTo(ErrorCode.DOCUMENT_VERSION_NOT_FOUND);
     }
 
+    @Test
+    void updateDocumentVersionUpdatesTitleContentAndUpdatedAt() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User createdBy = user(createdByUserId, "Owner");
+        DocumentVersion documentVersion = documentVersion(
+                documentVersionId,
+                documentDetail,
+                1,
+                "First draft",
+                "Initial content",
+                createdBy
+        );
+        OffsetDateTime beforeUpdatedAt = documentVersion.getUpdatedAt();
+        DocumentVersionUpdateRequest request = new DocumentVersionUpdateRequest(
+                "Updated draft",
+                "Updated content"
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.of(documentVersion));
+
+        DocumentVersionResponse response = documentVersionService.updateDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                request
+        );
+
+        assertThat(documentVersion.getTitle()).isEqualTo("Updated draft");
+        assertThat(documentVersion.getContent()).isEqualTo("Updated content");
+        assertThat(documentVersion.getUpdatedAt()).isAfter(beforeUpdatedAt);
+        assertThat(response.documentVersionId()).isEqualTo(documentVersionId);
+        assertThat(response.documentDetailId()).isEqualTo(documentDetailId);
+        assertThat(response.title()).isEqualTo("Updated draft");
+        assertThat(response.content()).isEqualTo("Updated content");
+        assertThat(response.updatedAt()).isEqualTo(documentVersion.getUpdatedAt());
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);
