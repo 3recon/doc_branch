@@ -27,3 +27,9 @@ DocBranch MVP1 Spring Boot REST API 서버다.
 - `DB_USERNAME`
 - `DB_PASSWORD`
 - Cloudflare R2 관련 환경 변수는 파일 업로드 구현 시 설정한다.
+
+## 로컬 DB 기본값
+
+- URL: `jdbc:postgresql://127.0.0.1:15432/docbranch`
+- Username: `docbranch`
+- Password: `docbranch`
