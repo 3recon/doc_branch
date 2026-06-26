@@ -56,4 +56,15 @@ public class Project {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "deleted_by")
     private User deletedBy;
+
+    public static Project create(String name, String description, User owner, OffsetDateTime now) {
+        Project project = new Project();
+        project.name = name;
+        project.description = description;
+        project.status = ProjectStatus.IN_PROGRESS;
+        project.owner = owner;
+        project.createdAt = now;
+        project.updatedAt = now;
+        return project;
+    }
 }

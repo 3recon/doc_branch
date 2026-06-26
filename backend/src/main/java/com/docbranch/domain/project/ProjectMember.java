@@ -47,4 +47,13 @@ public class ProjectMember {
 
     @Column(name = "removed_at")
     private OffsetDateTime removedAt;
+
+    public static ProjectMember createProjectAdmin(Project project, User user, OffsetDateTime joinedAt) {
+        ProjectMember projectMember = new ProjectMember();
+        projectMember.project = project;
+        projectMember.user = user;
+        projectMember.role = ProjectRole.PROJECT_ADMIN;
+        projectMember.joinedAt = joinedAt;
+        return projectMember;
+    }
 }

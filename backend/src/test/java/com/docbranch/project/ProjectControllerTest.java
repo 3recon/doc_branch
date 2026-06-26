@@ -14,8 +14,10 @@ import java.util.UUID;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -29,6 +31,42 @@ class ProjectControllerTest {
 
     @MockitoBean
     private ProjectService projectService;
+
+    @Test
+    void createProjectReturnsCreatedProject() throws Exception {
+        UUID ownerUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID projectId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        when(projectService.createProject(
+                new ProjectCreateRequest(ownerUserId, "문서 관리 프로젝트", "문서 버전 관리")
+        )).thenReturn(
+                new ProjectDetailResponse(
+                        projectId,
+                        "문서 관리 프로젝트",
+                        "문서 버전 관리",
+                        "IN_PROGRESS",
+                        "홍길동",
+                        createdAt,
+                        createdAt
+                )
+        );
+
+        mockMvc.perform(post("/api/projects")
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "ownerUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+                                  "name": "문서 관리 프로젝트",
+                                  "description": "문서 버전 관리"
+                                }
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.projectId").value(projectId.toString()))
+                .andExpect(jsonPath("$.name").value("문서 관리 프로젝트"))
+                .andExpect(jsonPath("$.description").value("문서 버전 관리"))
+                .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
+                .andExpect(jsonPath("$.ownerName").value("홍길동"));
+    }
 
     @Test
     void getProjectsReturnsProjectSummaries() throws Exception {
