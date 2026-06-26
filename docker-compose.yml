@@ -1,0 +1,22 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: docbranch-postgres
+    environment:
+      POSTGRES_DB: docbranch
+      POSTGRES_USER: docbranch
+      POSTGRES_PASSWORD: docbranch
+      TZ: Asia/Seoul
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U docbranch -d docbranch"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data:
