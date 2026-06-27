@@ -11,6 +11,8 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UU
 
     List<ProjectMember> findByProjectProjectIdAndRemovedAtIsNullOrderByJoinedAtAsc(UUID projectId);
 
+    Optional<ProjectMember> findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(UUID projectId, UUID userId);
+
     Optional<ProjectMember> findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(
             UUID projectMemberId,
             UUID projectId

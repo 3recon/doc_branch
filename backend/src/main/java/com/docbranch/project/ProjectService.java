@@ -60,6 +60,7 @@ public class ProjectService {
     public ProjectDetailResponse updateProject(UUID projectId, ProjectUpdateRequest request) {
         Project project = projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        validateProjectAdmin(projectId, request.requesterUserId());
         project.updateBasicInfo(request.name(), request.description(), OffsetDateTime.now());
 
         return toDetailResponse(project);
@@ -72,6 +73,7 @@ public class ProjectService {
         User deletedBy = userRepository.findById(request.deletedByUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
+        validateProjectAdmin(projectId, request.deletedByUserId());
         project.delete(deletedBy, OffsetDateTime.now());
     }
 
@@ -90,6 +92,7 @@ public class ProjectService {
             ProjectMemberRoleUpdateRequest request
     ) {
         validateProjectExists(projectId);
+        validateProjectAdmin(projectId, request.requesterUserId());
         ProjectMember projectMember = findActiveProjectMember(projectId, projectMemberId);
         projectMember.changeRole(ProjectRole.valueOf(request.role()));
 
@@ -97,8 +100,9 @@ public class ProjectService {
     }
 
     @Transactional
-    public void removeProjectMember(UUID projectId, UUID projectMemberId) {
+    public void removeProjectMember(UUID projectId, UUID projectMemberId, UUID requesterUserId) {
         validateProjectExists(projectId);
+        validateProjectAdmin(projectId, requesterUserId);
         ProjectMember projectMember = findActiveProjectMember(projectId, projectMemberId);
         projectMember.remove(OffsetDateTime.now());
     }
@@ -109,6 +113,7 @@ public class ProjectService {
             ProjectInvitationCreateRequest request
     ) {
         Project project = findActiveProject(projectId);
+        validateProjectAdmin(projectId, request.requesterUserId());
         ProjectInvitation invitation = projectInvitationRepository.save(ProjectInvitation.create(
                 project,
                 request.invitedEmail(),
@@ -184,6 +189,15 @@ public class ProjectService {
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+    }
+
+    private void validateProjectAdmin(UUID projectId, UUID requesterUserId) {
+        ProjectMember requester = projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
+        if (requester.getRole() != ProjectRole.PROJECT_ADMIN) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
+        }
     }
 
     private ProjectMember findActiveProjectMember(UUID projectId, UUID projectMemberId) {
