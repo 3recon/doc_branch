@@ -49,18 +49,20 @@ public class DocumentVersionController {
     @GetMapping
     public List<DocumentVersionResponse> getDocumentVersions(
             @PathVariable UUID projectId,
-            @PathVariable UUID documentDetailId
+            @PathVariable UUID documentDetailId,
+            @Valid @RequestBody DocumentReadRequest request
     ) {
-        return documentVersionService.getDocumentVersions(projectId, documentDetailId);
+        return documentVersionService.getDocumentVersions(projectId, documentDetailId, request);
     }
 
     @GetMapping("/{documentVersionId}")
     public DocumentVersionResponse getDocumentVersion(
             @PathVariable UUID projectId,
             @PathVariable UUID documentDetailId,
-            @PathVariable UUID documentVersionId
+            @PathVariable UUID documentVersionId,
+            @Valid @RequestBody DocumentReadRequest request
     ) {
-        return documentVersionService.getDocumentVersion(projectId, documentDetailId, documentVersionId);
+        return documentVersionService.getDocumentVersion(projectId, documentDetailId, documentVersionId, request);
     }
 
     @PatchMapping("/{documentVersionId}")

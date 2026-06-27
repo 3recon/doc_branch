@@ -123,8 +123,9 @@ class ProjectControllerTest {
     void getProjectInvitationsReturnsInvitations() throws Exception {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
-        when(projectService.getProjectInvitations(projectId)).thenReturn(List.of(
+        when(projectService.getProjectInvitations(projectId, new ProjectReadRequest(requesterUserId))).thenReturn(List.of(
                 new ProjectInvitationResponse(
                         invitationId,
                         projectId,
@@ -135,7 +136,13 @@ class ProjectControllerTest {
                 )
         ));
 
-        mockMvc.perform(get("/api/projects/{projectId}/invitations", projectId))
+        mockMvc.perform(get("/api/projects/{projectId}/invitations", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].invitationId").value(invitationId.toString()))
                 .andExpect(jsonPath("$[0].projectId").value(projectId.toString()))
@@ -150,12 +157,19 @@ class ProjectControllerTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
         UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime joinedAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
-        when(projectService.getProjectMembers(projectId)).thenReturn(List.of(
+        when(projectService.getProjectMembers(projectId, new ProjectReadRequest(requesterUserId))).thenReturn(List.of(
                 new ProjectMemberResponse(memberId, userId, "Owner", "owner@example.com", "PROJECT_ADMIN", joinedAt)
         ));
 
-        mockMvc.perform(get("/api/projects/{projectId}/members", projectId))
+        mockMvc.perform(get("/api/projects/{projectId}/members", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].projectMemberId").value(memberId.toString()))
                 .andExpect(jsonPath("$[0].userId").value(userId.toString()))
@@ -325,9 +339,10 @@ class ProjectControllerTest {
     @Test
     void getProjectReturnsProjectDetail() throws Exception {
         UUID projectId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-25T09:00:00+09:00");
         OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
-        when(projectService.getProject(projectId)).thenReturn(
+        when(projectService.getProject(projectId, new ProjectReadRequest(requesterUserId))).thenReturn(
                 new ProjectDetailResponse(
                         projectId,
                         "문서 브랜치",
@@ -339,7 +354,13 @@ class ProjectControllerTest {
                 )
         );
 
-        mockMvc.perform(get("/api/projects/{projectId}", projectId))
+        mockMvc.perform(get("/api/projects/{projectId}", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.projectId").value(projectId.toString()))
                 .andExpect(jsonPath("$.name").value("문서 브랜치"))

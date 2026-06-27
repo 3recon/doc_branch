@@ -57,8 +57,9 @@ public class DocumentService {
         return toResponse(documentDetail);
     }
 
-    public List<DocumentResponse> getDocuments(UUID projectId) {
+    public List<DocumentResponse> getDocuments(UUID projectId, DocumentReadRequest request) {
         findActiveProject(projectId);
+        validateProjectMember(projectId, request.requesterUserId());
         return documentDetailRepository
                 .findByProjectProjectIdAndDeletedAtIsNullOrderByUpdatedAtDescNameAsc(projectId)
                 .stream()
@@ -66,8 +67,9 @@ public class DocumentService {
                 .toList();
     }
 
-    public DocumentResponse getDocument(UUID projectId, UUID documentDetailId) {
+    public DocumentResponse getDocument(UUID projectId, UUID documentDetailId, DocumentReadRequest request) {
         findActiveProject(projectId);
+        validateProjectMember(projectId, request.requesterUserId());
         DocumentDetail documentDetail = documentDetailRepository
                 .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
@@ -115,6 +117,12 @@ public class DocumentService {
         if (requester.getRole() == ProjectRole.READ_ONLY) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
+    }
+
+    private void validateProjectMember(UUID projectId, UUID requesterUserId) {
+        projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
     }
 
     private DocumentResponse toResponse(DocumentDetail documentDetail) {

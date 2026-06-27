@@ -142,6 +142,7 @@ class DocumentServiceTest {
     void getDocumentsReturnsProjectDocuments() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         Project project = project(projectId);
         User createdBy = user(createdByUserId, "Owner");
         DocumentDetail documentDetail = documentDetail(
@@ -153,10 +154,20 @@ class DocumentServiceTest {
                 OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                        project,
+                        user(requesterUserId, "Reader"),
+                        ProjectRole.READ_ONLY
+                )));
         when(documentDetailRepository.findByProjectProjectIdAndDeletedAtIsNullOrderByUpdatedAtDescNameAsc(projectId))
                 .thenReturn(List.of(documentDetail));
 
-        List<DocumentResponse> documents = documentService.getDocuments(projectId);
+        List<DocumentResponse> documents = documentService.getDocuments(
+                projectId,
+                new DocumentReadRequest(requesterUserId)
+        );
 
         assertThat(documents).hasSize(1);
         assertThat(documents.getFirst().documentDetailId()).isEqualTo(documentDetail.getDocumentDetailId());
@@ -172,6 +183,7 @@ class DocumentServiceTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         Project project = project(projectId);
         User createdBy = user(createdByUserId, "Owner");
         DocumentDetail documentDetail = documentDetail(
@@ -183,12 +195,23 @@ class DocumentServiceTest {
                 OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                        project,
+                        user(requesterUserId, "Reader"),
+                        ProjectRole.READ_ONLY
+                )));
         when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
                 projectId,
                 documentDetailId
         )).thenReturn(Optional.of(documentDetail));
 
-        DocumentResponse response = documentService.getDocument(projectId, documentDetailId);
+        DocumentResponse response = documentService.getDocument(
+                projectId,
+                documentDetailId,
+                new DocumentReadRequest(requesterUserId)
+        );
 
         assertThat(response.documentDetailId()).isEqualTo(documentDetailId);
         assertThat(response.projectId()).isEqualTo(projectId);
@@ -205,16 +228,49 @@ class DocumentServiceTest {
     void getDocumentThrowsBusinessExceptionWhenDocumentDoesNotExistInProject() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
-        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project(projectId)));
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        Project project = project(projectId);
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("cccccccc-cccc-cccc-cccc-cccccccccccc"),
+                        project,
+                        user(requesterUserId, "Reader"),
+                        ProjectRole.READ_ONLY
+                )));
         when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
                 projectId,
                 documentDetailId
         )).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> documentService.getDocument(projectId, documentDetailId))
+        assertThatThrownBy(() -> documentService.getDocument(
+                projectId,
+                documentDetailId,
+                new DocumentReadRequest(requesterUserId)
+        ))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND);
+    }
+
+    @Test
+    void getDocumentThrowsBusinessExceptionWhenRequesterIsNotProjectMember() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
+        Project project = project(projectId);
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> documentService.getDocument(
+                projectId,
+                documentDetailId,
+                new DocumentReadRequest(requesterUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test

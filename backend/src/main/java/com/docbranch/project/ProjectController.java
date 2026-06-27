@@ -51,8 +51,11 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}/members")
-    public List<ProjectMemberResponse> getProjectMembers(@PathVariable UUID projectId) {
-        return projectService.getProjectMembers(projectId);
+    public List<ProjectMemberResponse> getProjectMembers(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectReadRequest request
+    ) {
+        return projectService.getProjectMembers(projectId, request);
     }
 
     @PatchMapping("/{projectId}/members/{projectMemberId}")
@@ -86,8 +89,11 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}/invitations")
-    public List<ProjectInvitationResponse> getProjectInvitations(@PathVariable UUID projectId) {
-        return projectService.getProjectInvitations(projectId);
+    public List<ProjectInvitationResponse> getProjectInvitations(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectReadRequest request
+    ) {
+        return projectService.getProjectInvitations(projectId, request);
     }
 
     @PostMapping("/{projectId}/invitations/{invitationId}/accept")
@@ -110,7 +116,10 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}")
-    public ProjectDetailResponse getProject(@PathVariable UUID projectId) {
-        return projectService.getProject(projectId);
+    public ProjectDetailResponse getProject(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody ProjectReadRequest request
+    ) {
+        return projectService.getProject(projectId, request);
     }
 }

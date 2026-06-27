@@ -37,16 +37,20 @@ public class DocumentController {
     }
 
     @GetMapping
-    public List<DocumentResponse> getDocuments(@PathVariable UUID projectId) {
-        return documentService.getDocuments(projectId);
+    public List<DocumentResponse> getDocuments(
+            @PathVariable UUID projectId,
+            @Valid @RequestBody DocumentReadRequest request
+    ) {
+        return documentService.getDocuments(projectId, request);
     }
 
     @GetMapping("/{documentDetailId}")
     public DocumentResponse getDocument(
             @PathVariable UUID projectId,
-            @PathVariable UUID documentDetailId
+            @PathVariable UUID documentDetailId,
+            @Valid @RequestBody DocumentReadRequest request
     ) {
-        return documentService.getDocument(projectId, documentDetailId);
+        return documentService.getDocument(projectId, documentDetailId, request);
     }
 
     @PatchMapping("/{documentDetailId}")

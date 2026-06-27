@@ -75,7 +75,7 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | 문서 생성/수정/삭제 | 요청 사용자가 `PROJECT_ADMIN` 또는 `PARTICIPANT`이어야 합니다. |
 | 문서 버전 생성/수정/삭제 | 요청 사용자가 `PROJECT_ADMIN` 또는 `PARTICIPANT`이어야 합니다. |
 | 최종 문서 버전 지정 | 요청 사용자가 `PROJECT_ADMIN`이어야 합니다. |
-| 조회 API | 현재 구현 기준으로 별도 요청 사용자 ID를 받지 않으며, 프로젝트/문서 존재 여부를 확인합니다. |
+| 조회 API | 프로젝트 상세, 멤버 목록, 초대 목록, 문서 목록/상세, 문서 버전 목록/단건 조회는 `requesterUserId`가 활성 프로젝트 멤버여야 합니다. |
 
 ### 주요 ErrorCode
 
@@ -128,10 +128,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `ProjectDetailResponse` |
-| 권한 | 프로젝트 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED` |
 
 ### 프로젝트 수정
 
@@ -163,10 +163,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}/members` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `ProjectMemberResponse[]` |
-| 권한 | 프로젝트 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED` |
 
 `ProjectMemberResponse`: `projectMemberId`, `userId`, `name`, `email`, `role`, `joinedAt`
 
@@ -213,10 +213,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}/invitations` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `ProjectInvitationResponse[]` |
-| 권한 | 프로젝트 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED` |
 
 ### 프로젝트 초대 수락
 
@@ -263,10 +263,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}/documents` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `DocumentResponse[]` |
-| 권한 | 프로젝트 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED` |
 
 ### 문서 기본 정보 조회
 
@@ -274,10 +274,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}/documents/{documentDetailId}` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `DocumentResponse` |
-| 권한 | 프로젝트 및 문서 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND`, `DOCUMENT_DETAIL_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED`, `DOCUMENT_DETAIL_NOT_FOUND` |
 
 ### 문서 수정
 
@@ -324,10 +324,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}/documents/{documentDetailId}/versions` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `DocumentVersionResponse[]` |
-| 권한 | 프로젝트 및 문서 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND`, `DOCUMENT_DETAIL_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED`, `DOCUMENT_DETAIL_NOT_FOUND` |
 
 ### 문서 버전 단건 조회
 
@@ -335,10 +335,10 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | --- | --- |
 | Method | `GET` |
 | Path | `/api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}` |
-| Request Body | 없음 |
+| Request Body | `requesterUserId` |
 | Response | `DocumentVersionResponse` |
-| 권한 | 프로젝트, 문서, 버전 존재 여부 확인 |
-| 주요 ErrorCode | `PROJECT_NOT_FOUND`, `DOCUMENT_DETAIL_NOT_FOUND`, `DOCUMENT_VERSION_NOT_FOUND` |
+| 권한 | `requesterUserId`가 활성 프로젝트 멤버여야 함 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE`, `PROJECT_NOT_FOUND`, `PROJECT_ACCESS_DENIED`, `DOCUMENT_DETAIL_NOT_FOUND`, `DOCUMENT_VERSION_NOT_FOUND` |
 
 ### 문서 버전 수정
 

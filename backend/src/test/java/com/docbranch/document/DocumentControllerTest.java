@@ -85,8 +85,9 @@ class DocumentControllerTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
-        when(documentService.getDocuments(projectId)).thenReturn(List.of(
+        when(documentService.getDocuments(projectId, new DocumentReadRequest(requesterUserId))).thenReturn(List.of(
                 new DocumentResponse(
                         documentDetailId,
                         projectId,
@@ -100,7 +101,13 @@ class DocumentControllerTest {
                 )
         ));
 
-        mockMvc.perform(get("/api/projects/{projectId}/documents", projectId))
+        mockMvc.perform(get("/api/projects/{projectId}/documents", projectId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].documentDetailId").value(documentDetailId.toString()))
                 .andExpect(jsonPath("$[0].projectId").value(projectId.toString()))
@@ -114,8 +121,9 @@ class DocumentControllerTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
-        when(documentService.getDocument(projectId, documentDetailId)).thenReturn(
+        when(documentService.getDocument(projectId, documentDetailId, new DocumentReadRequest(requesterUserId))).thenReturn(
                 new DocumentResponse(
                         documentDetailId,
                         projectId,
@@ -131,9 +139,15 @@ class DocumentControllerTest {
 
         mockMvc.perform(get(
                         "/api/projects/{projectId}/documents/{documentDetailId}",
-                        projectId,
-                        documentDetailId
-                ))
+                projectId,
+                documentDetailId
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.documentDetailId").value(documentDetailId.toString()))
                 .andExpect(jsonPath("$.projectId").value(projectId.toString()))
