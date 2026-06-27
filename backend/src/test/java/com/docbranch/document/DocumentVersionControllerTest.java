@@ -194,13 +194,14 @@ class DocumentVersionControllerTest {
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
         OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
         when(documentVersionService.updateDocumentVersion(
                 eq(projectId),
                 eq(documentDetailId),
                 eq(documentVersionId),
-                any(DocumentVersionUpdateRequest.class)
+                eq(new DocumentVersionUpdateRequest(requesterUserId, "Updated draft", "Updated content"))
         )).thenReturn(
                 new DocumentVersionResponse(
                         documentVersionId,
@@ -226,6 +227,7 @@ class DocumentVersionControllerTest {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                                   "title": "Updated draft",
                                   "content": "Updated content"
                                 }
@@ -246,16 +248,28 @@ class DocumentVersionControllerTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
         mockMvc.perform(delete(
                         "/api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}",
                         projectId,
                         documentDetailId,
                         documentVersionId
-                ))
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isNoContent());
 
-        verify(documentVersionService).deleteDocumentVersion(projectId, documentDetailId, documentVersionId);
+        verify(documentVersionService).deleteDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionDeleteRequest(requesterUserId)
+        );
     }
 
     @Test

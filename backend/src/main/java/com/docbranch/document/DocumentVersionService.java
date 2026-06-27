@@ -57,6 +57,7 @@ public class DocumentVersionService {
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
         User createdBy = userRepository.findById(request.createdByUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        validateProjectWritableMember(projectId, request.createdByUserId());
 
         int nextVersionNumber = documentVersionRepository.findMaxVersionNumber(documentDetailId) + 1;
         DocumentVersionType versionType = nextVersionNumber == 1
@@ -126,6 +127,7 @@ public class DocumentVersionService {
                         documentVersionId
                 )
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_VERSION_NOT_FOUND));
+        validateProjectWritableMember(projectId, request.requesterUserId());
 
         documentVersion.updateContent(request.title(), request.content(), OffsetDateTime.now());
 
@@ -157,7 +159,12 @@ public class DocumentVersionService {
     }
 
     @Transactional
-    public void deleteDocumentVersion(UUID projectId, UUID documentDetailId, UUID documentVersionId) {
+    public void deleteDocumentVersion(
+            UUID projectId,
+            UUID documentDetailId,
+            UUID documentVersionId,
+            DocumentVersionDeleteRequest request
+    ) {
         findActiveProject(projectId);
         documentDetailRepository
                 .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
@@ -168,6 +175,7 @@ public class DocumentVersionService {
                         documentVersionId
                 )
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_VERSION_NOT_FOUND));
+        validateProjectWritableMember(projectId, request.requesterUserId());
 
         documentVersion.delete(OffsetDateTime.now());
     }
@@ -182,6 +190,15 @@ public class DocumentVersionService {
                 .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
         if (requester.getRole() != ProjectRole.PROJECT_ADMIN) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
+        }
+    }
+
+    private void validateProjectWritableMember(UUID projectId, UUID requesterUserId) {
+        ProjectMember requester = projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
+        if (requester.getRole() == ProjectRole.READ_ONLY) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
     }
