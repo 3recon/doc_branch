@@ -68,6 +68,13 @@ class DocumentVersionServiceTest {
                 documentDetailId
         )).thenReturn(Optional.of(documentDetail));
         when(userRepository.findById(createdByUserId)).thenReturn(Optional.of(createdBy));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        createdBy,
+                        ProjectRole.PARTICIPANT
+                )));
         when(documentVersionRepository.findMaxVersionNumber(documentDetailId)).thenReturn(0);
         when(documentVersionRepository.save(any(DocumentVersion.class))).thenAnswer(invocation -> {
             DocumentVersion documentVersion = invocation.getArgument(0);
@@ -139,6 +146,13 @@ class DocumentVersionServiceTest {
                 documentDetailId
         )).thenReturn(Optional.of(documentDetail));
         when(userRepository.findById(createdByUserId)).thenReturn(Optional.of(createdBy));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        createdBy,
+                        ProjectRole.PROJECT_ADMIN
+                )));
         when(documentVersionRepository.findMaxVersionNumber(documentDetailId)).thenReturn(1);
         when(documentVersionRepository.save(any(DocumentVersion.class))).thenAnswer(invocation -> {
             DocumentVersion documentVersion = invocation.getArgument(0);
@@ -178,6 +192,39 @@ class DocumentVersionServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND);
+    }
+
+    @Test
+    void createDocumentVersionThrowsBusinessExceptionWhenCreatedByIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User createdBy = user(createdByUserId, "Reader");
+        DocumentVersionCreateRequest request = new DocumentVersionCreateRequest(
+                "First draft",
+                "Initial content",
+                createdByUserId
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(userRepository.findById(createdByUserId)).thenReturn(Optional.of(createdBy));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        createdBy,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentVersionService.createDocumentVersion(projectId, documentDetailId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test
@@ -319,6 +366,7 @@ class DocumentVersionServiceTest {
         );
         OffsetDateTime beforeUpdatedAt = documentVersion.getUpdatedAt();
         DocumentVersionUpdateRequest request = new DocumentVersionUpdateRequest(
+                createdByUserId,
                 "Updated draft",
                 "Updated content"
         );
@@ -333,6 +381,13 @@ class DocumentVersionServiceTest {
                         documentVersionId
                 ))
                 .thenReturn(Optional.of(documentVersion));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        createdBy,
+                        ProjectRole.PARTICIPANT
+                )));
 
         DocumentVersionResponse response = documentVersionService.updateDocumentVersion(
                 projectId,
@@ -349,6 +404,53 @@ class DocumentVersionServiceTest {
         assertThat(response.title()).isEqualTo("Updated draft");
         assertThat(response.content()).isEqualTo("Updated content");
         assertThat(response.updatedAt()).isEqualTo(documentVersion.getUpdatedAt());
+    }
+
+    @Test
+    void updateDocumentVersionThrowsBusinessExceptionWhenRequesterIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User requester = user(requesterUserId, "Reader");
+        DocumentVersion documentVersion = documentVersion(
+                documentVersionId,
+                documentDetail,
+                1,
+                "First draft",
+                "Initial content",
+                requester
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.of(documentVersion));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        requester,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentVersionService.updateDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionUpdateRequest(requesterUserId, "Updated draft", "Updated content")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test
@@ -380,11 +482,70 @@ class DocumentVersionServiceTest {
                         documentVersionId
                 ))
                 .thenReturn(Optional.of(documentVersion));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        createdBy,
+                        ProjectRole.PROJECT_ADMIN
+                )));
 
-        documentVersionService.deleteDocumentVersion(projectId, documentDetailId, documentVersionId);
+        documentVersionService.deleteDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionDeleteRequest(createdByUserId)
+        );
 
         assertThat(documentVersion.getDeletedAt()).isNotNull();
         assertThat(documentVersion.getDeletedAt()).isAfter(beforeDeletedAt);
+    }
+
+    @Test
+    void deleteDocumentVersionThrowsBusinessExceptionWhenRequesterIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User requester = user(requesterUserId, "Reader");
+        DocumentVersion documentVersion = documentVersion(
+                documentVersionId,
+                documentDetail,
+                1,
+                "First draft",
+                "Initial content",
+                requester
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.of(documentVersion));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        requester,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentVersionService.deleteDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionDeleteRequest(requesterUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test

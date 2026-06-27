@@ -92,9 +92,10 @@ public class DocumentVersionController {
     public ResponseEntity<Void> deleteDocumentVersion(
             @PathVariable UUID projectId,
             @PathVariable UUID documentDetailId,
-            @PathVariable UUID documentVersionId
+            @PathVariable UUID documentVersionId,
+            @Valid @RequestBody DocumentVersionDeleteRequest request
     ) {
-        documentVersionService.deleteDocumentVersion(projectId, documentDetailId, documentVersionId);
+        documentVersionService.deleteDocumentVersion(projectId, documentDetailId, documentVersionId, request);
         return ResponseEntity.noContent().build();
     }
 }
