@@ -77,6 +77,54 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 | 최종 문서 버전 지정 | 요청 사용자가 `PROJECT_ADMIN`이어야 합니다. |
 | 조회 API | 프로젝트 상세, 멤버 목록, 초대 목록, 문서 목록/상세, 문서 버전 목록/단건 조회는 `requesterUserId`가 활성 프로젝트 멤버여야 합니다. |
 
+### MVP1 인증/사용자 임시 정책
+
+현재 MVP1 백엔드는 로그인 세션, JWT, OAuth2 인증 토큰에서 사용자 정보를 꺼내지 않습니다. API 요청 body에 포함된 사용자 UUID를 기준으로 사용자 존재 여부와 프로젝트 권한을 확인합니다.
+
+현재 코드 기준으로 별도 사용자 생성/조회/로그인 API 컨트롤러는 없습니다. `UserRepository`에 존재하는 사용자 UUID를 요청 body로 전달해야 하며, 존재하지 않는 사용자는 `USER_NOT_FOUND` 또는 권한 검증 실패로 처리됩니다.
+
+| 사용자 ID 필드 | 현재 의미 | 주요 사용처 |
+| --- | --- | --- |
+| `ownerUserId` | 프로젝트 생성자이자 최초 프로젝트 관리자 | 프로젝트 생성 |
+| `requesterUserId` | API를 호출한 사용자로 간주되는 요청자 | 프로젝트 수정, 멤버 관리, 초대 생성, 조회 권한 확인, 문서/버전 수정과 삭제 |
+| `createdByUserId` | 문서 또는 문서 버전을 생성한 사용자 | 문서 생성, 문서 버전 생성 |
+| `deletedByUserId` | 프로젝트 삭제 요청자 | 프로젝트 삭제 |
+| `userId` | 프로젝트 초대를 수락하는 사용자 | 프로젝트 초대 수락 |
+
+MVP1에서는 아래 임시 정책을 유지합니다.
+
+- 클라이언트는 API 호출 시 필요한 사용자 UUID를 요청 body에 포함합니다.
+- 서버는 body의 사용자 UUID가 실제 로그인 사용자와 같은지 검증하지 않습니다.
+- 권한 검증은 프로젝트 멤버 테이블의 활성 멤버 여부와 역할을 기준으로 처리합니다.
+- `PROJECT_ADMIN`, `PARTICIPANT`, `READ_ONLY` 역할 정책은 현재 서비스 로직을 기준으로 적용합니다.
+- 프로젝트 목록 조회와 초대 만료 처리 API는 현재 구현 기준으로 요청 사용자 ID를 받지 않습니다.
+
+인증 전환 시에는 로그인한 사용자 정보를 서버가 직접 알아내도록 바꾸고, 아래 API의 사용자 ID 필드를 요청 body에서 제거해야 합니다.
+
+| API | 현재 body 사용자 ID | 인증 전환 시 변경 방향 |
+| --- | --- | --- |
+| `POST /api/projects` | `ownerUserId` | 로그인 사용자를 프로젝트 소유자로 사용 |
+| `GET /api/projects/{projectId}` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `PATCH /api/projects/{projectId}` | `requesterUserId` | 로그인 사용자로 관리자 권한 확인 |
+| `DELETE /api/projects/{projectId}` | `deletedByUserId` | 로그인 사용자로 관리자 권한 확인 및 삭제자 기록 |
+| `GET /api/projects/{projectId}/members` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `PATCH /api/projects/{projectId}/members/{projectMemberId}` | `requesterUserId` | 로그인 사용자로 관리자 권한 확인 |
+| `DELETE /api/projects/{projectId}/members/{projectMemberId}` | `requesterUserId` | 로그인 사용자로 관리자 권한 확인 |
+| `POST /api/projects/{projectId}/invitations` | `requesterUserId` | 로그인 사용자로 관리자 권한 확인 |
+| `GET /api/projects/{projectId}/invitations` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `POST /api/projects/{projectId}/invitations/{invitationId}/accept` | `userId` | 로그인 사용자를 초대 수락자로 사용 |
+| `POST /api/projects/{projectId}/documents` | `createdByUserId` | 로그인 사용자를 문서 생성자로 사용 |
+| `GET /api/projects/{projectId}/documents` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `GET /api/projects/{projectId}/documents/{documentDetailId}` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `PATCH /api/projects/{projectId}/documents/{documentDetailId}` | `requesterUserId` | 로그인 사용자로 문서 수정 권한 확인 |
+| `DELETE /api/projects/{projectId}/documents/{documentDetailId}` | `requesterUserId` | 로그인 사용자로 문서 삭제 권한 확인 |
+| `POST /api/projects/{projectId}/documents/{documentDetailId}/versions` | `createdByUserId` | 로그인 사용자를 버전 생성자로 사용 |
+| `GET /api/projects/{projectId}/documents/{documentDetailId}/versions` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `GET /api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}` | `requesterUserId` | 로그인 사용자로 프로젝트 멤버 여부 확인 |
+| `PATCH /api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}` | `requesterUserId` | 로그인 사용자로 버전 수정 권한 확인 |
+| `PATCH /api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}/final` | `requesterUserId` | 로그인 사용자로 관리자 권한 확인 |
+| `DELETE /api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}` | `requesterUserId` | 로그인 사용자로 버전 삭제 권한 확인 |
+
 ### 주요 ErrorCode
 
 | ErrorCode | HTTP Status | 주요 상황 |
