@@ -151,12 +151,13 @@ class DocumentControllerTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
         OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
         when(documentService.updateDocument(
                 eq(projectId),
                 eq(documentDetailId),
-                any(DocumentUpdateRequest.class)
+                eq(new DocumentUpdateRequest(requesterUserId, "Updated Guide", "Updated project guide"))
         )).thenReturn(
                 new DocumentResponse(
                         documentDetailId,
@@ -179,6 +180,7 @@ class DocumentControllerTest {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                                   "name": "Updated Guide",
                                   "description": "Updated project guide"
                                 }
@@ -199,14 +201,25 @@ class DocumentControllerTest {
     void deleteDocumentReturnsNoContent() throws Exception {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
         mockMvc.perform(delete(
                         "/api/projects/{projectId}/documents/{documentDetailId}",
                         projectId,
                         documentDetailId
-                ))
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isNoContent());
 
-        verify(documentService).deleteDocument(projectId, documentDetailId);
+        verify(documentService).deleteDocument(
+                projectId,
+                documentDetailId,
+                new DocumentDeleteRequest(requesterUserId)
+        );
     }
 }

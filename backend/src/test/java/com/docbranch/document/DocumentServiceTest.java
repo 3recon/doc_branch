@@ -5,9 +5,12 @@ import com.docbranch.common.exception.ErrorCode;
 import com.docbranch.domain.document.DocumentDetail;
 import com.docbranch.domain.document.DocumentStatus;
 import com.docbranch.domain.project.Project;
+import com.docbranch.domain.project.ProjectMember;
+import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.project.ProjectStatus;
 import com.docbranch.domain.user.User;
 import com.docbranch.repository.document.DocumentDetailRepository;
+import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
 import com.docbranch.repository.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -31,10 +34,12 @@ class DocumentServiceTest {
 
     private final DocumentDetailRepository documentDetailRepository = mock(DocumentDetailRepository.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
+    private final ProjectMemberRepository projectMemberRepository = mock(ProjectMemberRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final DocumentService documentService = new DocumentService(
             documentDetailRepository,
             projectRepository,
+            projectMemberRepository,
             userRepository
     );
 
@@ -48,6 +53,13 @@ class DocumentServiceTest {
         DocumentCreateRequest request = new DocumentCreateRequest("Guide", "Project guide", createdByUserId);
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
         when(userRepository.findById(createdByUserId)).thenReturn(Optional.of(createdBy));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                        project,
+                        createdBy,
+                        ProjectRole.PARTICIPANT
+                )));
         when(documentDetailRepository.save(any(DocumentDetail.class))).thenAnswer(invocation -> {
             DocumentDetail documentDetail = invocation.getArgument(0);
             ReflectionTestUtils.setField(documentDetail, "documentDetailId", documentDetailId);
@@ -101,6 +113,29 @@ class DocumentServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    void createDocumentThrowsBusinessExceptionWhenCreatedByIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        User createdBy = user(createdByUserId, "Reader");
+        DocumentCreateRequest request = new DocumentCreateRequest("Guide", "Project guide", createdByUserId);
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(userRepository.findById(createdByUserId)).thenReturn(Optional.of(createdBy));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                        project,
+                        createdBy,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentService.createDocument(projectId, request))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test
@@ -198,12 +233,23 @@ class DocumentServiceTest {
                 createdBy,
                 createdAt
         );
-        DocumentUpdateRequest request = new DocumentUpdateRequest("Updated Guide", "Updated project guide");
+        DocumentUpdateRequest request = new DocumentUpdateRequest(
+                createdByUserId,
+                "Updated Guide",
+                "Updated project guide"
+        );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
         when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
                 projectId,
                 documentDetailId
         )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, createdByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                        project,
+                        createdBy,
+                        ProjectRole.PARTICIPANT
+                )));
 
         DocumentResponse response = documentService.updateDocument(projectId, documentDetailId, request);
 
@@ -219,6 +265,44 @@ class DocumentServiceTest {
         assertThat(response.createdByName()).isEqualTo("Owner");
         assertThat(response.createdAt()).isEqualTo(createdAt);
         assertThat(response.updatedAt()).isEqualTo(documentDetail.getUpdatedAt());
+    }
+
+    @Test
+    void updateDocumentThrowsBusinessExceptionWhenRequesterIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        User requester = user(requesterUserId, "Reader");
+        DocumentDetail documentDetail = documentDetail(
+                documentDetailId,
+                project,
+                "Guide",
+                "Project guide",
+                requester,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                        project,
+                        requester,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentService.updateDocument(
+                projectId,
+                documentDetailId,
+                new DocumentUpdateRequest(requesterUserId, "Updated Guide", "Updated project guide")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test
@@ -241,11 +325,63 @@ class DocumentServiceTest {
                 projectId,
                 documentDetailId
         )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(
+                projectId,
+                createdBy.getUserId()
+        ))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                        project,
+                        createdBy,
+                        ProjectRole.PROJECT_ADMIN
+                )));
 
-        documentService.deleteDocument(projectId, documentDetailId);
+        documentService.deleteDocument(
+                projectId,
+                documentDetailId,
+                new DocumentDeleteRequest(createdBy.getUserId())
+        );
 
         assertThat(documentDetail.getDeletedAt()).isNotNull();
         assertThat(documentDetail.getDeletedAt()).isAfter(createdAt);
+    }
+
+    @Test
+    void deleteDocumentThrowsBusinessExceptionWhenRequesterIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        User requester = user(requesterUserId, "Reader");
+        DocumentDetail documentDetail = documentDetail(
+                documentDetailId,
+                project,
+                "Guide",
+                "Project guide",
+                requester,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                        project,
+                        requester,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentService.deleteDocument(
+                projectId,
+                documentDetailId,
+                new DocumentDeleteRequest(requesterUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     private Project project(UUID projectId) {
@@ -281,5 +417,20 @@ class DocumentServiceTest {
         ReflectionTestUtils.setField(documentDetail, "createdAt", now);
         ReflectionTestUtils.setField(documentDetail, "updatedAt", now);
         return documentDetail;
+    }
+
+    private ProjectMember projectMember(
+            UUID projectMemberId,
+            Project project,
+            User user,
+            ProjectRole role
+    ) {
+        ProjectMember projectMember = BeanUtils.instantiateClass(ProjectMember.class);
+        ReflectionTestUtils.setField(projectMember, "projectMemberId", projectMemberId);
+        ReflectionTestUtils.setField(projectMember, "project", project);
+        ReflectionTestUtils.setField(projectMember, "user", user);
+        ReflectionTestUtils.setField(projectMember, "role", role);
+        ReflectionTestUtils.setField(projectMember, "joinedAt", OffsetDateTime.parse("2026-06-26T09:00:00+09:00"));
+        return projectMember;
     }
 }
