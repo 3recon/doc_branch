@@ -81,7 +81,7 @@ DocBranch MVP1 Spring Boot REST API 서버입니다.
 
 현재 MVP1 백엔드는 로그인 세션, JWT, OAuth2 인증 토큰에서 사용자 정보를 꺼내지 않습니다. API 요청 body에 포함된 사용자 UUID를 기준으로 사용자 존재 여부와 프로젝트 권한을 확인합니다.
 
-현재 코드 기준으로 별도 사용자 생성/조회/로그인 API 컨트롤러는 없습니다. `UserRepository`에 존재하는 사용자 UUID를 요청 body로 전달해야 하며, 존재하지 않는 사용자는 `USER_NOT_FOUND` 또는 권한 검증 실패로 처리됩니다.
+현재 코드 기준으로 MVP1 사용자 생성/단건 조회 API가 있습니다. 로그인 API는 아직 없으며, 프로젝트와 문서 API에서는 `UserRepository`에 존재하는 사용자 UUID를 요청 body로 전달해야 합니다. 존재하지 않는 사용자는 `USER_NOT_FOUND` 또는 권한 검증 실패로 처리됩니다.
 
 | 사용자 ID 필드 | 현재 의미 | 주요 사용처 |
 | --- | --- | --- |
@@ -141,6 +141,32 @@ MVP1에서는 아래 임시 정책을 유지합니다.
 | `DOCUMENT_DETAIL_NOT_FOUND` | 404 | 문서 상세를 찾을 수 없음 |
 | `DOCUMENT_VERSION_NOT_FOUND` | 404 | 문서 버전을 찾을 수 없음 |
 | `INTERNAL_SERVER_ERROR` | 500 | 서버 내부 오류 |
+
+## 사용자 API
+
+### 사용자 생성
+
+| 항목 | 내용 |
+| --- | --- |
+| Method | `POST` |
+| Path | `/api/users` |
+| Request Body | `name`, `email` |
+| Response | `UserResponse` |
+| 권한 | 별도 권한 검증 없음 |
+| 주요 ErrorCode | `INVALID_INPUT_VALUE` |
+
+`UserResponse`: `userId`, `name`, `email`, `status`, `createdAt`, `updatedAt`
+
+### 사용자 단건 조회
+
+| 항목 | 내용 |
+| --- | --- |
+| Method | `GET` |
+| Path | `/api/users/{userId}` |
+| Request Body | 없음 |
+| Response | `UserResponse` |
+| 권한 | 별도 권한 검증 없음 |
+| 주요 ErrorCode | `USER_NOT_FOUND` |
 
 ## 프로젝트 API
 

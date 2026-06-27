@@ -47,4 +47,14 @@ public class User {
 
     @Column(name = "withdrawn_at")
     private OffsetDateTime withdrawnAt;
+
+    public static User create(String name, String email, OffsetDateTime now) {
+        User user = new User();
+        user.name = name;
+        user.email = email;
+        user.status = UserStatus.ACTIVE;
+        user.createdAt = now;
+        user.updatedAt = now;
+        return user;
+    }
 }
