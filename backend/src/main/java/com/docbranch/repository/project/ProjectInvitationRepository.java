@@ -13,6 +13,8 @@ public interface ProjectInvitationRepository extends JpaRepository<ProjectInvita
 
     List<ProjectInvitation> findByProjectProjectIdOrderByExpiresAtAsc(UUID projectId);
 
+    Optional<ProjectInvitation> findByInvitationIdAndProjectProjectId(UUID invitationId, UUID projectId);
+
     Optional<ProjectInvitation> findByInvitationIdAndProjectProjectIdAndStatus(
             UUID invitationId,
             UUID projectId,
