@@ -78,8 +78,13 @@ public class DocumentVersionService {
         return toResponse(documentVersion);
     }
 
-    public List<DocumentVersionResponse> getDocumentVersions(UUID projectId, UUID documentDetailId) {
+    public List<DocumentVersionResponse> getDocumentVersions(
+            UUID projectId,
+            UUID documentDetailId,
+            DocumentReadRequest request
+    ) {
         findActiveProject(projectId);
+        validateProjectMember(projectId, request.requesterUserId());
         documentDetailRepository
                 .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
@@ -94,9 +99,11 @@ public class DocumentVersionService {
     public DocumentVersionResponse getDocumentVersion(
             UUID projectId,
             UUID documentDetailId,
-            UUID documentVersionId
+            UUID documentVersionId,
+            DocumentReadRequest request
     ) {
         findActiveProject(projectId);
+        validateProjectMember(projectId, request.requesterUserId());
         documentDetailRepository
                 .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
@@ -201,6 +208,12 @@ public class DocumentVersionService {
         if (requester.getRole() == ProjectRole.READ_ONLY) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
+    }
+
+    private void validateProjectMember(UUID projectId, UUID requesterUserId) {
+        projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
     }
 
     private DocumentVersionResponse toResponse(DocumentVersion documentVersion) {

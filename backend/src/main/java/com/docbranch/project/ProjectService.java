@@ -77,8 +77,9 @@ public class ProjectService {
         project.delete(deletedBy, OffsetDateTime.now());
     }
 
-    public List<ProjectMemberResponse> getProjectMembers(UUID projectId) {
+    public List<ProjectMemberResponse> getProjectMembers(UUID projectId, ProjectReadRequest request) {
         validateProjectExists(projectId);
+        validateProjectMember(projectId, request.requesterUserId());
         return projectMemberRepository.findByProjectProjectIdAndRemovedAtIsNullOrderByJoinedAtAsc(projectId)
                 .stream()
                 .map(this::toMemberResponse)
@@ -124,8 +125,9 @@ public class ProjectService {
         return toInvitationResponse(invitation);
     }
 
-    public List<ProjectInvitationResponse> getProjectInvitations(UUID projectId) {
+    public List<ProjectInvitationResponse> getProjectInvitations(UUID projectId, ProjectReadRequest request) {
         validateProjectExists(projectId);
+        validateProjectMember(projectId, request.requesterUserId());
         return projectInvitationRepository.findByProjectProjectIdOrderByExpiresAtAsc(projectId)
                 .stream()
                 .map(this::toInvitationResponse)
@@ -180,9 +182,10 @@ public class ProjectService {
                 .toList();
     }
 
-    public ProjectDetailResponse getProject(UUID projectId) {
+    public ProjectDetailResponse getProject(UUID projectId, ProjectReadRequest request) {
         Project project = projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+        validateProjectMember(projectId, request.requesterUserId());
 
         return toDetailResponse(project);
     }
@@ -203,6 +206,12 @@ public class ProjectService {
         if (requester.getRole() != ProjectRole.PROJECT_ADMIN) {
             throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
         }
+    }
+
+    private void validateProjectMember(UUID projectId, UUID requesterUserId) {
+        projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
     }
 
     private ProjectMember findActiveProjectMember(UUID projectId, UUID projectMemberId) {

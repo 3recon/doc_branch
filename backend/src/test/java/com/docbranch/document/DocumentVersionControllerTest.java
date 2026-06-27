@@ -95,8 +95,13 @@ class DocumentVersionControllerTest {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
-        when(documentVersionService.getDocumentVersions(projectId, documentDetailId)).thenReturn(List.of(
+        when(documentVersionService.getDocumentVersions(
+                projectId,
+                documentDetailId,
+                new DocumentReadRequest(requesterUserId)
+        )).thenReturn(List.of(
                 new DocumentVersionResponse(
                         UUID.fromString("22222222-2222-2222-2222-222222222222"),
                         documentDetailId,
@@ -129,7 +134,13 @@ class DocumentVersionControllerTest {
                         "/api/projects/{projectId}/documents/{documentDetailId}/versions",
                         projectId,
                         documentDetailId
-                ))
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].documentDetailId").value(documentDetailId.toString()))
                 .andExpect(jsonPath("$[0].versionNumber").value(1))
@@ -149,11 +160,13 @@ class DocumentVersionControllerTest {
         UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
         UUID documentVersionId = UUID.fromString("22222222-2222-2222-2222-222222222222");
         UUID createdByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
         when(documentVersionService.getDocumentVersion(
                 projectId,
                 documentDetailId,
-                documentVersionId
+                documentVersionId,
+                new DocumentReadRequest(requesterUserId)
         )).thenReturn(
                 new DocumentVersionResponse(
                         documentVersionId,
@@ -175,7 +188,13 @@ class DocumentVersionControllerTest {
                         projectId,
                         documentDetailId,
                         documentVersionId
-                ))
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.documentVersionId").value(documentVersionId.toString()))
                 .andExpect(jsonPath("$.documentDetailId").value(documentDetailId.toString()))
