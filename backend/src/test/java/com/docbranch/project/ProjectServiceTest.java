@@ -164,6 +164,7 @@ class ProjectServiceTest {
     void createProjectInvitationSavesPendingInvitation() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         OffsetDateTime expiresAt = OffsetDateTime.parse("2026-07-03T09:00:00+09:00");
         Project project = project(
                 projectId,
@@ -175,11 +176,20 @@ class ProjectServiceTest {
                 OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
         );
         ProjectInvitationCreateRequest request = new ProjectInvitationCreateRequest(
+                requesterUserId,
                 "member@example.com",
                 "PARTICIPANT",
                 expiresAt
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Owner"),
+                        ProjectRole.PROJECT_ADMIN,
+                        OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+                )));
         when(projectInvitationRepository.save(any(ProjectInvitation.class))).thenAnswer(invocation -> {
             ProjectInvitation invitation = invocation.getArgument(0);
             ReflectionTestUtils.setField(invitation, "invitationId", invitationId);
@@ -209,6 +219,7 @@ class ProjectServiceTest {
     void createProjectInvitationThrowsBusinessExceptionWhenProjectDoesNotExist() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         ProjectInvitationCreateRequest request = new ProjectInvitationCreateRequest(
+                UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
                 "member@example.com",
                 "PARTICIPANT",
                 OffsetDateTime.parse("2026-07-03T09:00:00+09:00")
@@ -219,6 +230,43 @@ class ProjectServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
+    }
+
+    @Test
+    void createProjectInvitationThrowsBusinessExceptionWhenRequesterIsParticipant() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Member"),
+                        ProjectRole.PARTICIPANT,
+                        OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+                )));
+
+        assertThatThrownBy(() -> projectService.createProjectInvitation(
+                projectId,
+                new ProjectInvitationCreateRequest(
+                        requesterUserId,
+                        "member@example.com",
+                        "READ_ONLY",
+                        OffsetDateTime.parse("2026-07-03T09:00:00+09:00")
+                )
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test
@@ -301,6 +349,7 @@ class ProjectServiceTest {
     void updateProjectMemberRoleChangesRole() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         Project project = project(
                 projectId,
                 "Project",
@@ -323,13 +372,21 @@ class ProjectServiceTest {
                 OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("99999999-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Owner"),
+                        ProjectRole.PROJECT_ADMIN,
+                        OffsetDateTime.parse("2026-06-26T08:00:00+09:00")
+                )));
         when(projectMemberRepository.findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(memberId, projectId))
                 .thenReturn(Optional.of(member));
 
         ProjectMemberResponse response = projectService.updateProjectMemberRole(
                 projectId,
                 memberId,
-                new ProjectMemberRoleUpdateRequest("READ_ONLY")
+                new ProjectMemberRoleUpdateRequest(requesterUserId, "READ_ONLY")
         );
 
         assertThat(member.getRole()).isEqualTo(ProjectRole.READ_ONLY);
@@ -341,6 +398,7 @@ class ProjectServiceTest {
     void removeProjectMemberSetsRemovedAt() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         Project project = project(
                 projectId,
                 "Project",
@@ -363,10 +421,18 @@ class ProjectServiceTest {
                 OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("99999999-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Owner"),
+                        ProjectRole.PROJECT_ADMIN,
+                        OffsetDateTime.parse("2026-06-26T08:00:00+09:00")
+                )));
         when(projectMemberRepository.findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(memberId, projectId))
                 .thenReturn(Optional.of(member));
 
-        projectService.removeProjectMember(projectId, memberId);
+        projectService.removeProjectMember(projectId, memberId, requesterUserId);
 
         assertThat(member.getRemovedAt()).isNotNull();
     }
@@ -375,6 +441,7 @@ class ProjectServiceTest {
     void updateProjectMemberRoleThrowsBusinessExceptionWhenMemberDoesNotExist() {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID memberId = UUID.fromString("22222222-2222-3333-4444-555555555555");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         Project project = project(
                 projectId,
                 "Project",
@@ -385,13 +452,24 @@ class ProjectServiceTest {
                 OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Admin"),
+                        ProjectRole.PROJECT_ADMIN,
+                        OffsetDateTime.parse("2026-06-25T09:00:00+09:00")
+                )));
         when(projectMemberRepository.findByProjectMemberIdAndProjectProjectIdAndRemovedAtIsNull(memberId, projectId))
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> projectService.updateProjectMemberRole(
                 projectId,
                 memberId,
-                new ProjectMemberRoleUpdateRequest("READ_ONLY")
+                new ProjectMemberRoleUpdateRequest(
+                        requesterUserId,
+                        "READ_ONLY"
+                )
         ))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
@@ -413,6 +491,14 @@ class ProjectServiceTest {
                 OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, deletedByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        deletedBy,
+                        ProjectRole.PROJECT_ADMIN,
+                        OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+                )));
         when(userRepository.findById(deletedByUserId)).thenReturn(Optional.of(deletedBy));
 
         projectService.deleteProject(projectId, new ProjectDeleteRequest(deletedByUserId));
@@ -462,8 +548,40 @@ class ProjectServiceTest {
     }
 
     @Test
+    void deleteProjectThrowsBusinessExceptionWhenRequesterIsReadOnly() {
+        UUID projectId = UUID.fromString("66666666-6666-6666-6666-666666666666");
+        UUID deletedByUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        User deletedBy = user(deletedByUserId, "Reader");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(userRepository.findById(deletedByUserId)).thenReturn(Optional.of(deletedBy));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, deletedByUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        deletedBy,
+                        ProjectRole.READ_ONLY,
+                        OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+                )));
+
+        assertThatThrownBy(() -> projectService.deleteProject(projectId, new ProjectDeleteRequest(deletedByUserId)))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
+    }
+
+    @Test
     void updateProjectChangesProjectBasicInfo() {
         UUID projectId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-25T09:00:00+09:00");
         OffsetDateTime previousUpdatedAt = OffsetDateTime.parse("2026-06-25T10:00:00+09:00");
         Project project = project(
@@ -476,10 +594,18 @@ class ProjectServiceTest {
                 previousUpdatedAt
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Owner"),
+                        ProjectRole.PROJECT_ADMIN,
+                        OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+                )));
 
         ProjectDetailResponse response = projectService.updateProject(
                 projectId,
-                new ProjectUpdateRequest("Updated Project", "Updated description")
+                new ProjectUpdateRequest(requesterUserId, "Updated Project", "Updated description")
         );
 
         assertThat(project.getName()).isEqualTo("Updated Project");
@@ -497,15 +623,48 @@ class ProjectServiceTest {
     @Test
     void updateProjectThrowsBusinessExceptionWhenProjectDoesNotExist() {
         UUID projectId = UUID.fromString("55555555-5555-5555-5555-555555555555");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> projectService.updateProject(
                 projectId,
-                new ProjectUpdateRequest("Updated Project", "Updated description")
+                new ProjectUpdateRequest(requesterUserId, "Updated Project", "Updated description")
         ))
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.PROJECT_NOT_FOUND);
+    }
+
+    @Test
+    void updateProjectThrowsBusinessExceptionWhenRequesterIsParticipant() {
+        UUID projectId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Original Project",
+                "Original description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("11111111-2222-3333-4444-555555555555"),
+                        project,
+                        user(requesterUserId, "Member"),
+                        ProjectRole.PARTICIPANT,
+                        OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+                )));
+
+        assertThatThrownBy(() -> projectService.updateProject(
+                projectId,
+                new ProjectUpdateRequest(requesterUserId, "Updated Project", "Updated description")
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
     }
 
     @Test

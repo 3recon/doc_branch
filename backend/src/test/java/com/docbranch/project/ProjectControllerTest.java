@@ -104,6 +104,7 @@ class ProjectControllerTest {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "requesterUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                                   "invitedEmail": "member@example.com",
                                   "role": "PARTICIPANT",
                                   "expiresAt": "2026-07-03T09:00:00+09:00"
@@ -168,12 +169,13 @@ class ProjectControllerTest {
     void updateProjectMemberRoleReturnsUpdatedMember() throws Exception {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
         UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         OffsetDateTime joinedAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
         when(projectService.updateProjectMemberRole(
                 projectId,
                 memberId,
-                new ProjectMemberRoleUpdateRequest("READ_ONLY")
+                new ProjectMemberRoleUpdateRequest(requesterUserId, "READ_ONLY")
         )).thenReturn(
                 new ProjectMemberResponse(memberId, userId, "Owner", "owner@example.com", "READ_ONLY", joinedAt)
         );
@@ -182,6 +184,7 @@ class ProjectControllerTest {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
                                   "role": "READ_ONLY"
                                 }
                                 """))
@@ -195,11 +198,18 @@ class ProjectControllerTest {
     void removeProjectMemberReturnsNoContent() throws Exception {
         UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
         UUID memberId = UUID.fromString("11111111-2222-3333-4444-555555555555");
+        UUID requesterUserId = UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
 
-        mockMvc.perform(delete("/api/projects/{projectId}/members/{projectMemberId}", projectId, memberId))
+        mockMvc.perform(delete("/api/projects/{projectId}/members/{projectMemberId}", projectId, memberId)
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+                                }
+                                """))
                 .andExpect(status().isNoContent());
 
-        verify(projectService).removeProjectMember(projectId, memberId);
+        verify(projectService).removeProjectMember(projectId, memberId, requesterUserId);
     }
 
     @Test
@@ -222,11 +232,12 @@ class ProjectControllerTest {
     @Test
     void updateProjectReturnsUpdatedProject() throws Exception {
         UUID projectId = UUID.fromString("44444444-4444-4444-4444-444444444444");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
         OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-25T09:00:00+09:00");
         OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
         when(projectService.updateProject(
                 projectId,
-                new ProjectUpdateRequest("Updated Project", "Updated description")
+                new ProjectUpdateRequest(requesterUserId, "Updated Project", "Updated description")
         )).thenReturn(
                 new ProjectDetailResponse(
                         projectId,
@@ -243,6 +254,7 @@ class ProjectControllerTest {
                         .contentType(APPLICATION_JSON)
                         .content("""
                                 {
+                                  "requesterUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
                                   "name": "Updated Project",
                                   "description": "Updated description"
                                 }

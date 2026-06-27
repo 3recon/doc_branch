@@ -67,9 +67,10 @@ public class ProjectController {
     @DeleteMapping("/{projectId}/members/{projectMemberId}")
     public ResponseEntity<Void> removeProjectMember(
             @PathVariable UUID projectId,
-            @PathVariable UUID projectMemberId
+            @PathVariable UUID projectMemberId,
+            @Valid @RequestBody ProjectMemberRemoveRequest request
     ) {
-        projectService.removeProjectMember(projectId, projectMemberId);
+        projectService.removeProjectMember(projectId, projectMemberId, request.requesterUserId());
         return ResponseEntity.noContent().build();
     }
 
