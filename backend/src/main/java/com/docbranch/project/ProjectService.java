@@ -139,9 +139,14 @@ public class ProjectService {
             ProjectInvitationAcceptRequest request
     ) {
         validateProjectExists(projectId);
-        ProjectInvitation invitation = findPendingInvitation(projectId, invitationId);
+        ProjectInvitation invitation = findProjectInvitation(projectId, invitationId);
         User user = userRepository.findById(request.userId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        validateAcceptableInvitation(invitation);
+        projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, request.userId())
+                .ifPresent(projectMember -> {
+                    throw new BusinessException(ErrorCode.PROJECT_MEMBER_ALREADY_EXISTS);
+                });
 
         invitation.accept();
         projectMemberRepository.save(ProjectMember.create(
@@ -210,6 +215,22 @@ public class ProjectService {
         return projectInvitationRepository
                 .findByInvitationIdAndProjectProjectIdAndStatus(invitationId, projectId, InvitationStatus.PENDING)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_INVITATION_NOT_FOUND));
+    }
+
+    private ProjectInvitation findProjectInvitation(UUID projectId, UUID invitationId) {
+        return projectInvitationRepository
+                .findByInvitationIdAndProjectProjectId(invitationId, projectId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_INVITATION_NOT_FOUND));
+    }
+
+    private void validateAcceptableInvitation(ProjectInvitation invitation) {
+        if (invitation.getStatus() != InvitationStatus.PENDING) {
+            throw new BusinessException(ErrorCode.PROJECT_INVITATION_ALREADY_PROCESSED);
+        }
+        if (invitation.getExpiresAt().isBefore(OffsetDateTime.now())) {
+            invitation.expire();
+            throw new BusinessException(ErrorCode.PROJECT_INVITATION_EXPIRED);
+        }
     }
 
     private ProjectSummaryResponse toSummaryResponse(Project project) {

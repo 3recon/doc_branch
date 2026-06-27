@@ -29,6 +29,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
 import org.mockito.ArgumentCaptor;
 
@@ -69,9 +70,13 @@ class ProjectServiceTest {
         );
         User user = user(userId, "Member", "member@example.com");
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectId(invitationId, projectId))
+                .thenReturn(Optional.of(invitation));
         when(projectInvitationRepository.findByInvitationIdAndProjectProjectIdAndStatus(invitationId, projectId, InvitationStatus.PENDING))
                 .thenReturn(Optional.of(invitation));
         when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, userId))
+                .thenReturn(Optional.empty());
 
         ProjectInvitationResponse response = projectService.acceptProjectInvitation(
                 projectId,
@@ -105,6 +110,8 @@ class ProjectServiceTest {
                 OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
         );
         when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectId(invitationId, projectId))
+                .thenReturn(Optional.empty());
         when(projectInvitationRepository.findByInvitationIdAndProjectProjectIdAndStatus(invitationId, projectId, InvitationStatus.PENDING))
                 .thenReturn(Optional.empty());
 
@@ -116,6 +123,173 @@ class ProjectServiceTest {
                 .isInstanceOf(BusinessException.class)
                 .extracting("errorCode")
                 .isEqualTo(ErrorCode.PROJECT_INVITATION_NOT_FOUND);
+    }
+
+    @Test
+    void acceptProjectInvitationThrowsBusinessExceptionWhenInvitationIsExpired() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitation invitation = projectInvitation(
+                invitationId,
+                project,
+                "member@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.PENDING,
+                OffsetDateTime.parse("2026-06-01T09:00:00+09:00")
+        );
+        User user = user(userId, "Member", "member@example.com");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectId(invitationId, projectId))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_INVITATION_EXPIRED);
+        assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.EXPIRED);
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
+    }
+
+    @Test
+    void acceptProjectInvitationThrowsBusinessExceptionWhenInvitationIsAlreadyAccepted() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitation invitation = projectInvitation(
+                invitationId,
+                project,
+                "member@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.ACCEPTED,
+                OffsetDateTime.parse("2026-07-03T09:00:00+09:00")
+        );
+        User user = user(userId, "Member", "member@example.com");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectId(invitationId, projectId))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_INVITATION_ALREADY_PROCESSED);
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
+    }
+
+    @Test
+    void acceptProjectInvitationThrowsBusinessExceptionWhenInvitationIsAlreadyExpired() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        ProjectInvitation invitation = projectInvitation(
+                invitationId,
+                project,
+                "member@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.EXPIRED,
+                OffsetDateTime.parse("2026-06-01T09:00:00+09:00")
+        );
+        User user = user(userId, "Member", "member@example.com");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectId(invitationId, projectId))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_INVITATION_ALREADY_PROCESSED);
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
+    }
+
+    @Test
+    void acceptProjectInvitationThrowsBusinessExceptionWhenUserIsAlreadyProjectMember() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID invitationId = UUID.fromString("12345678-1234-1234-1234-123456789012");
+        UUID userId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(
+                projectId,
+                "Project",
+                "Description",
+                ProjectStatus.IN_PROGRESS,
+                "Owner",
+                OffsetDateTime.parse("2026-06-25T09:00:00+09:00"),
+                OffsetDateTime.parse("2026-06-25T10:00:00+09:00")
+        );
+        User user = user(userId, "Member", "member@example.com");
+        ProjectInvitation invitation = projectInvitation(
+                invitationId,
+                project,
+                "member@example.com",
+                ProjectRole.PARTICIPANT,
+                InvitationStatus.PENDING,
+                OffsetDateTime.parse("2026-07-03T09:00:00+09:00")
+        );
+        ProjectMember existingMember = projectMember(
+                UUID.fromString("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                project,
+                user,
+                ProjectRole.PARTICIPANT,
+                OffsetDateTime.parse("2026-06-26T09:00:00+09:00")
+        );
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(projectInvitationRepository.findByInvitationIdAndProjectProjectId(invitationId, projectId))
+                .thenReturn(Optional.of(invitation));
+        when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, userId))
+                .thenReturn(Optional.of(existingMember));
+
+        assertThatThrownBy(() -> projectService.acceptProjectInvitation(
+                projectId,
+                invitationId,
+                new ProjectInvitationAcceptRequest(userId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_MEMBER_ALREADY_EXISTS);
+        assertThat(invitation.getStatus()).isEqualTo(InvitationStatus.PENDING);
+        verify(projectMemberRepository, never()).save(any(ProjectMember.class));
     }
 
     @Test
