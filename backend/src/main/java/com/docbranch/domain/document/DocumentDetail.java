@@ -106,4 +106,9 @@ public class DocumentDetail {
         this.finalVersion = documentVersion;
         this.updatedAt = updatedAt;
     }
+
+    public void updateFinalVersion(DocumentVersion documentVersion, OffsetDateTime updatedAt) {
+        this.finalVersion = documentVersion;
+        this.updatedAt = updatedAt;
+    }
 }
