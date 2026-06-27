@@ -61,9 +61,10 @@ public class DocumentController {
     @DeleteMapping("/{documentDetailId}")
     public ResponseEntity<Void> deleteDocument(
             @PathVariable UUID projectId,
-            @PathVariable UUID documentDetailId
+            @PathVariable UUID documentDetailId,
+            @Valid @RequestBody DocumentDeleteRequest request
     ) {
-        documentService.deleteDocument(projectId, documentDetailId);
+        documentService.deleteDocument(projectId, documentDetailId, request);
         return ResponseEntity.noContent().build();
     }
 }

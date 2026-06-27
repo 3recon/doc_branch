@@ -4,8 +4,11 @@ import com.docbranch.common.exception.BusinessException;
 import com.docbranch.common.exception.ErrorCode;
 import com.docbranch.domain.document.DocumentDetail;
 import com.docbranch.domain.project.Project;
+import com.docbranch.domain.project.ProjectMember;
+import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.user.User;
 import com.docbranch.repository.document.DocumentDetailRepository;
+import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
 import com.docbranch.repository.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -21,15 +24,18 @@ public class DocumentService {
 
     private final DocumentDetailRepository documentDetailRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
 
     public DocumentService(
             DocumentDetailRepository documentDetailRepository,
             ProjectRepository projectRepository,
+            ProjectMemberRepository projectMemberRepository,
             UserRepository userRepository
     ) {
         this.documentDetailRepository = documentDetailRepository;
         this.projectRepository = projectRepository;
+        this.projectMemberRepository = projectMemberRepository;
         this.userRepository = userRepository;
     }
 
@@ -38,6 +44,7 @@ public class DocumentService {
         Project project = findActiveProject(projectId);
         User createdBy = userRepository.findById(request.createdByUserId())
                 .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        validateProjectWritableMember(projectId, request.createdByUserId());
         OffsetDateTime now = OffsetDateTime.now();
         DocumentDetail documentDetail = documentDetailRepository.save(DocumentDetail.create(
                 project,
@@ -78,6 +85,7 @@ public class DocumentService {
         DocumentDetail documentDetail = documentDetailRepository
                 .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+        validateProjectWritableMember(projectId, request.requesterUserId());
 
         documentDetail.updateBasicInfo(request.name(), request.description(), OffsetDateTime.now());
 
@@ -85,11 +93,12 @@ public class DocumentService {
     }
 
     @Transactional
-    public void deleteDocument(UUID projectId, UUID documentDetailId) {
+    public void deleteDocument(UUID projectId, UUID documentDetailId, DocumentDeleteRequest request) {
         findActiveProject(projectId);
         DocumentDetail documentDetail = documentDetailRepository
                 .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+        validateProjectWritableMember(projectId, request.requesterUserId());
 
         documentDetail.delete(OffsetDateTime.now());
     }
@@ -97,6 +106,15 @@ public class DocumentService {
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+    }
+
+    private void validateProjectWritableMember(UUID projectId, UUID requesterUserId) {
+        ProjectMember requester = projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
+        if (requester.getRole() == ProjectRole.READ_ONLY) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
+        }
     }
 
     private DocumentResponse toResponse(DocumentDetail documentDetail) {
