@@ -257,4 +257,54 @@ class DocumentVersionControllerTest {
 
         verify(documentVersionService).deleteDocumentVersion(projectId, documentDetailId, documentVersionId);
     }
+
+    @Test
+    void updateFinalDocumentVersionReturnsFinalVersion() throws Exception {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-06-26T09:00:00+09:00");
+        OffsetDateTime updatedAt = OffsetDateTime.parse("2026-06-26T10:00:00+09:00");
+        when(documentVersionService.updateFinalDocumentVersion(
+                eq(projectId),
+                eq(documentDetailId),
+                eq(documentVersionId),
+                any(DocumentVersionFinalUpdateRequest.class)
+        )).thenReturn(
+                new DocumentVersionResponse(
+                        documentVersionId,
+                        documentDetailId,
+                        2,
+                        "Second draft",
+                        "Updated content",
+                        "REVISION",
+                        "DRAFT",
+                        requesterUserId,
+                        "Admin",
+                        createdAt,
+                        updatedAt
+                )
+        );
+
+        mockMvc.perform(patch(
+                        "/api/projects/{projectId}/documents/{documentDetailId}/versions/{documentVersionId}/final",
+                        projectId,
+                        documentDetailId,
+                        documentVersionId
+                )
+                        .contentType(APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "requesterUserId": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.documentVersionId").value(documentVersionId.toString()))
+                .andExpect(jsonPath("$.documentDetailId").value(documentDetailId.toString()))
+                .andExpect(jsonPath("$.versionNumber").value(2))
+                .andExpect(jsonPath("$.title").value("Second draft"))
+                .andExpect(jsonPath("$.versionType").value("REVISION"))
+                .andExpect(jsonPath("$.updatedAt").value("2026-06-26T10:00:00+09:00"));
+    }
 }

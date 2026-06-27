@@ -6,9 +6,12 @@ import com.docbranch.domain.document.DocumentDetail;
 import com.docbranch.domain.document.DocumentVersion;
 import com.docbranch.domain.document.DocumentVersionType;
 import com.docbranch.domain.project.Project;
+import com.docbranch.domain.project.ProjectMember;
+import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.user.User;
 import com.docbranch.repository.document.DocumentDetailRepository;
 import com.docbranch.repository.document.DocumentVersionRepository;
+import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
 import com.docbranch.repository.user.UserRepository;
 import org.springframework.stereotype.Service;
@@ -25,17 +28,20 @@ public class DocumentVersionService {
     private final DocumentVersionRepository documentVersionRepository;
     private final DocumentDetailRepository documentDetailRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
 
     public DocumentVersionService(
             DocumentVersionRepository documentVersionRepository,
             DocumentDetailRepository documentDetailRepository,
             ProjectRepository projectRepository,
+            ProjectMemberRepository projectMemberRepository,
             UserRepository userRepository
     ) {
         this.documentVersionRepository = documentVersionRepository;
         this.documentDetailRepository = documentDetailRepository;
         this.projectRepository = projectRepository;
+        this.projectMemberRepository = projectMemberRepository;
         this.userRepository = userRepository;
     }
 
@@ -127,6 +133,30 @@ public class DocumentVersionService {
     }
 
     @Transactional
+    public DocumentVersionResponse updateFinalDocumentVersion(
+            UUID projectId,
+            UUID documentDetailId,
+            UUID documentVersionId,
+            DocumentVersionFinalUpdateRequest request
+    ) {
+        findActiveProject(projectId);
+        DocumentDetail documentDetail = documentDetailRepository
+                .findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(projectId, documentDetailId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_DETAIL_NOT_FOUND));
+        validateProjectAdmin(projectId, request.requesterUserId());
+        DocumentVersion documentVersion = documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                )
+                .orElseThrow(() -> new BusinessException(ErrorCode.DOCUMENT_VERSION_NOT_FOUND));
+
+        documentDetail.updateFinalVersion(documentVersion, OffsetDateTime.now());
+
+        return toResponse(documentVersion);
+    }
+
+    @Transactional
     public void deleteDocumentVersion(UUID projectId, UUID documentDetailId, UUID documentVersionId) {
         findActiveProject(projectId);
         documentDetailRepository
@@ -145,6 +175,15 @@ public class DocumentVersionService {
     private Project findActiveProject(UUID projectId) {
         return projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_NOT_FOUND));
+    }
+
+    private void validateProjectAdmin(UUID projectId, UUID requesterUserId) {
+        ProjectMember requester = projectMemberRepository
+                .findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED));
+        if (requester.getRole() != ProjectRole.PROJECT_ADMIN) {
+            throw new BusinessException(ErrorCode.PROJECT_ACCESS_DENIED);
+        }
     }
 
     private DocumentVersionResponse toResponse(DocumentVersion documentVersion) {

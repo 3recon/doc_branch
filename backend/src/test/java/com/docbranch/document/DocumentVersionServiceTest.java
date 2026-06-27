@@ -7,10 +7,13 @@ import com.docbranch.domain.document.DocumentStatus;
 import com.docbranch.domain.document.DocumentVersion;
 import com.docbranch.domain.document.DocumentVersionType;
 import com.docbranch.domain.project.Project;
+import com.docbranch.domain.project.ProjectMember;
+import com.docbranch.domain.project.ProjectRole;
 import com.docbranch.domain.project.ProjectStatus;
 import com.docbranch.domain.user.User;
 import com.docbranch.repository.document.DocumentDetailRepository;
 import com.docbranch.repository.document.DocumentVersionRepository;
+import com.docbranch.repository.project.ProjectMemberRepository;
 import com.docbranch.repository.project.ProjectRepository;
 import com.docbranch.repository.user.UserRepository;
 import org.junit.jupiter.api.Test;
@@ -35,11 +38,13 @@ class DocumentVersionServiceTest {
     private final DocumentVersionRepository documentVersionRepository = mock(DocumentVersionRepository.class);
     private final DocumentDetailRepository documentDetailRepository = mock(DocumentDetailRepository.class);
     private final ProjectRepository projectRepository = mock(ProjectRepository.class);
+    private final ProjectMemberRepository projectMemberRepository = mock(ProjectMemberRepository.class);
     private final UserRepository userRepository = mock(UserRepository.class);
     private final DocumentVersionService documentVersionService = new DocumentVersionService(
             documentVersionRepository,
             documentDetailRepository,
             projectRepository,
+            projectMemberRepository,
             userRepository
     );
 
@@ -382,6 +387,123 @@ class DocumentVersionServiceTest {
         assertThat(documentVersion.getDeletedAt()).isAfter(beforeDeletedAt);
     }
 
+    @Test
+    void updateFinalDocumentVersionSetsDocumentFinalVersionWhenRequesterIsProjectAdmin() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User admin = user(requesterUserId, "Admin");
+        DocumentVersion finalVersion = documentVersion(
+                documentVersionId,
+                documentDetail,
+                2,
+                "Second draft",
+                "Updated content",
+                admin
+        );
+        ReflectionTestUtils.setField(finalVersion, "versionType", DocumentVersionType.REVISION);
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        admin,
+                        ProjectRole.PROJECT_ADMIN
+                )));
+        when(documentVersionRepository
+                .findByDocumentDetailDocumentDetailIdAndDocumentVersionIdAndDeletedAtIsNull(
+                        documentDetailId,
+                        documentVersionId
+                ))
+                .thenReturn(Optional.of(finalVersion));
+
+        DocumentVersionResponse response = documentVersionService.updateFinalDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionFinalUpdateRequest(requesterUserId)
+        );
+
+        assertThat(documentDetail.getFinalVersion()).isSameAs(finalVersion);
+        assertThat(documentDetail.getUpdatedAt()).isAfter(documentDetail.getCreatedAt());
+        assertThat(response.documentVersionId()).isEqualTo(documentVersionId);
+        assertThat(response.versionNumber()).isEqualTo(2);
+        assertThat(response.versionType()).isEqualTo("REVISION");
+    }
+
+    @Test
+    void updateFinalDocumentVersionThrowsBusinessExceptionWhenRequesterIsParticipant() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User participant = user(requesterUserId, "Member");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        participant,
+                        ProjectRole.PARTICIPANT
+                )));
+
+        assertThatThrownBy(() -> documentVersionService.updateFinalDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionFinalUpdateRequest(requesterUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
+    }
+
+    @Test
+    void updateFinalDocumentVersionThrowsBusinessExceptionWhenRequesterIsReadOnly() {
+        UUID projectId = UUID.fromString("99999999-9999-9999-9999-999999999999");
+        UUID documentDetailId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        UUID documentVersionId = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        UUID requesterUserId = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
+        Project project = project(projectId);
+        DocumentDetail documentDetail = documentDetail(documentDetailId, project);
+        User readOnly = user(requesterUserId, "Reader");
+        when(projectRepository.findByProjectIdAndDeletedAtIsNull(projectId)).thenReturn(Optional.of(project));
+        when(documentDetailRepository.findByProjectProjectIdAndDocumentDetailIdAndDeletedAtIsNull(
+                projectId,
+                documentDetailId
+        )).thenReturn(Optional.of(documentDetail));
+        when(projectMemberRepository.findByProjectProjectIdAndUserUserIdAndRemovedAtIsNull(projectId, requesterUserId))
+                .thenReturn(Optional.of(projectMember(
+                        UUID.fromString("44444444-4444-4444-4444-444444444444"),
+                        project,
+                        readOnly,
+                        ProjectRole.READ_ONLY
+                )));
+
+        assertThatThrownBy(() -> documentVersionService.updateFinalDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                new DocumentVersionFinalUpdateRequest(requesterUserId)
+        ))
+                .isInstanceOf(BusinessException.class)
+                .extracting("errorCode")
+                .isEqualTo(ErrorCode.PROJECT_ACCESS_DENIED);
+    }
+
     private Project project(UUID projectId) {
         Project project = BeanUtils.instantiateClass(Project.class);
         ReflectionTestUtils.setField(project, "projectId", projectId);
@@ -433,5 +555,20 @@ class DocumentVersionServiceTest {
         ReflectionTestUtils.setField(documentVersion, "createdAt", now);
         ReflectionTestUtils.setField(documentVersion, "updatedAt", now);
         return documentVersion;
+    }
+
+    private ProjectMember projectMember(
+            UUID projectMemberId,
+            Project project,
+            User user,
+            ProjectRole role
+    ) {
+        ProjectMember projectMember = BeanUtils.instantiateClass(ProjectMember.class);
+        ReflectionTestUtils.setField(projectMember, "projectMemberId", projectMemberId);
+        ReflectionTestUtils.setField(projectMember, "project", project);
+        ReflectionTestUtils.setField(projectMember, "user", user);
+        ReflectionTestUtils.setField(projectMember, "role", role);
+        ReflectionTestUtils.setField(projectMember, "joinedAt", OffsetDateTime.parse("2026-06-26T09:00:00+09:00"));
+        return projectMember;
     }
 }

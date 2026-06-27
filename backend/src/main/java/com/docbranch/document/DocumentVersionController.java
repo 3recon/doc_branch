@@ -73,6 +73,21 @@ public class DocumentVersionController {
         return documentVersionService.updateDocumentVersion(projectId, documentDetailId, documentVersionId, request);
     }
 
+    @PatchMapping("/{documentVersionId}/final")
+    public DocumentVersionResponse updateFinalDocumentVersion(
+            @PathVariable UUID projectId,
+            @PathVariable UUID documentDetailId,
+            @PathVariable UUID documentVersionId,
+            @Valid @RequestBody DocumentVersionFinalUpdateRequest request
+    ) {
+        return documentVersionService.updateFinalDocumentVersion(
+                projectId,
+                documentDetailId,
+                documentVersionId,
+                request
+        );
+    }
+
     @DeleteMapping("/{documentVersionId}")
     public ResponseEntity<Void> deleteDocumentVersion(
             @PathVariable UUID projectId,
