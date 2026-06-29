@@ -1,0 +1,627 @@
+:root {
+  --surface: #f9f9f9;
+  --canvas-soft: #f6f5f4;
+  --surface-lowest: #ffffff;
+  --surface-low: #f3f3f3;
+  --surface-container: #eeeeee;
+  --hairline: #e6e6e6;
+  --outline: #717784;
+  --outline-variant: #c1c6d5;
+  --ink: #1b1b1b;
+  --ink-secondary: #31302e;
+  --ink-muted: #615d59;
+  --primary: #005db2;
+  --primary-pressed: #00468a;
+  --primary-soft: #d5e3ff;
+  --error: #ba1a1a;
+  --error-soft: #ffdad6;
+  --success: #1aae39;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--surface-lowest);
+  color: var(--ink);
+  font-family: Inter, Arial, sans-serif;
+  font-feature-settings: "lnum";
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.loginPage {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 40px;
+  background: var(--surface-lowest);
+}
+
+.loginGrid {
+  width: min(440px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+
+.loginColumn {
+  display: grid;
+  gap: 24px;
+}
+
+.loginCard,
+.workspacePreview,
+.previewPanel {
+  border: 1px solid var(--hairline);
+  background: var(--surface-lowest);
+}
+
+.loginCard {
+  border-radius: 16px;
+  padding: 40px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 16px 40px rgba(0, 0, 0, 0.04);
+}
+
+.brandBlock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.brandMark {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  color: var(--primary);
+}
+
+.brandMark span {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border: 2px solid currentColor;
+  border-radius: 2px;
+}
+
+.brandMark span:nth-child(1) {
+  left: 1px;
+  top: 1px;
+}
+
+.brandMark span:nth-child(2) {
+  right: 1px;
+  top: 1px;
+}
+
+.brandMark span:nth-child(3) {
+  left: 10px;
+  bottom: 1px;
+}
+
+.brandName {
+  margin: 0;
+  color: var(--primary);
+  font-size: 26px;
+  line-height: 32px;
+  font-weight: 800;
+  letter-spacing: -0.625px;
+}
+
+.loginCard h1 {
+  margin: 0 0 32px;
+  text-align: center;
+  color: var(--ink);
+  font-size: 20px;
+  line-height: 28px;
+  font-weight: 800;
+  letter-spacing: -0.125px;
+}
+
+.socialStack {
+  display: grid;
+  gap: 12px;
+}
+
+.socialButton {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  display: grid;
+  grid-template-columns: 48px 1fr 48px;
+  align-items: center;
+  border-radius: 14px;
+  padding: 0 18px;
+  border: 1px solid var(--hairline);
+  background: var(--surface-lowest);
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 800;
+  transition:
+    transform 140ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.socialButton:hover {
+  border-color: var(--outline-variant);
+  background: var(--surface);
+  transform: translateY(-1px);
+}
+
+.socialButton:active {
+  transform: scale(0.98);
+}
+
+.socialButton span:last-child {
+  justify-self: center;
+}
+
+.socialIcon {
+  width: 20px;
+  height: 20px;
+  justify-self: center;
+}
+
+.socialButton-kakao {
+  border-color: #fee500;
+  background: #fee500;
+  color: #191600;
+}
+
+.socialButton-kakao:hover {
+  border-color: #f0d700;
+  background: #f6dc00;
+}
+
+.socialButton-naver {
+  border-color: #03c75a;
+  background: #03c75a;
+  color: #ffffff;
+}
+
+.socialButton-naver:hover {
+  border-color: #02b552;
+  background: #02b552;
+}
+
+.naverIcon {
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  justify-self: center;
+  font-size: 13px;
+  line-height: 1;
+  font-weight: 900;
+}
+
+.loginLinks {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  color: var(--ink-muted);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.loginLinks a:hover {
+  color: var(--primary);
+}
+
+.workspacePreview {
+  min-height: 560px;
+  border-radius: 20px;
+  padding: 28px;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 24px;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.03),
+    0 16px 48px rgba(0, 0, 0, 0.04);
+}
+
+.previewHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.previewEyebrow {
+  margin: 0 0 8px;
+  color: var(--primary);
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 800;
+  letter-spacing: 0.125px;
+  text-transform: uppercase;
+}
+
+.previewHeader h2 {
+  margin: 0;
+  max-width: 420px;
+  color: var(--ink);
+  font-size: 32px;
+  line-height: 36px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+}
+
+.previewBadge,
+.finalBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.previewBadge {
+  min-height: 28px;
+  padding: 0 11px;
+  background: var(--primary-soft);
+  color: var(--primary-pressed);
+}
+
+.previewPanel {
+  border-radius: 16px;
+  padding: 18px;
+  display: grid;
+  gap: 14px;
+  align-self: stretch;
+}
+
+.previewSection {
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.previewSectionTitle,
+.previewRow,
+.documentLine,
+.activityCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.previewSectionTitle {
+  min-height: 44px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--hairline);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.previewSectionTitle small,
+.previewRow em,
+.documentLine span,
+.activityCard span {
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-style: normal;
+  font-weight: 600;
+}
+
+.previewRow,
+.documentLine {
+  min-height: 48px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--hairline);
+  font-size: 14px;
+  font-weight: 750;
+}
+
+.previewRow:last-child,
+.documentLine:last-child {
+  border-bottom: 0;
+}
+
+.documentLine strong {
+  font-size: 14px;
+}
+
+.finalBadge {
+  min-height: 24px;
+  padding: 0 10px;
+  background: rgba(26, 174, 57, 0.12);
+  color: #126b26;
+}
+
+.activityCard {
+  min-height: 76px;
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--primary);
+  color: #ffffff;
+}
+
+.activityCard p {
+  margin: 0;
+  max-width: 340px;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 800;
+}
+
+.activityCard span {
+  color: rgba(255, 255, 255, 0.74);
+  white-space: nowrap;
+}
+
+.mvpLauncher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 40;
+  min-height: 42px;
+  padding: 0 16px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 999px;
+  background: var(--surface-lowest);
+  color: var(--ink);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.mvpLauncher:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.mvpOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 24px;
+  background: rgba(27, 27, 27, 0.28);
+}
+
+.mvpPanel {
+  width: min(100%, 420px);
+  border: 1px solid var(--hairline);
+  border-radius: 16px;
+  background: var(--surface-lowest);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.18);
+  overflow: hidden;
+}
+
+.mvpPanelHeader,
+.mvpPanelBody {
+  padding: 20px;
+}
+
+.mvpPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--hairline);
+  background: var(--surface);
+}
+
+.mvpPanelTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 900;
+}
+
+.mvpPanelCopy,
+.mvpHelper,
+.mvpCurrentMeta {
+  color: var(--ink-muted);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.mvpPanelCopy {
+  margin: 6px 0 0;
+}
+
+.mvpClose {
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-lowest);
+  color: var(--ink-secondary);
+  font-size: 18px;
+}
+
+.mvpTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface-low);
+}
+
+.mvpTab {
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.mvpTab[aria-selected="true"] {
+  background: var(--surface-lowest);
+  color: var(--ink);
+  box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.mvpForm {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.mvpField {
+  display: grid;
+  gap: 6px;
+}
+
+.mvpField span {
+  color: var(--ink-secondary);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.mvpField input {
+  min-height: 42px;
+  border: 1px solid var(--outline-variant);
+  border-radius: 6px;
+  padding: 9px 11px;
+  color: var(--ink);
+  outline: none;
+}
+
+.mvpField input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 93, 178, 0.14);
+}
+
+.mvpAction {
+  min-height: 42px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.mvpAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.mvpStatus {
+  margin-top: 14px;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.mvpStatus.success {
+  border: 1px solid rgba(26, 174, 57, 0.22);
+  background: rgba(26, 174, 57, 0.08);
+  color: #126b26;
+}
+
+.mvpStatus.error {
+  border: 1px solid rgba(186, 26, 26, 0.22);
+  background: var(--error-soft);
+  color: #93000a;
+}
+
+.mvpCurrent {
+  margin-top: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  background: var(--surface);
+  padding: 12px;
+}
+
+.mvpCurrentName {
+  margin: 0 0 4px;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.mvpCurrentMeta {
+  margin: 0;
+  word-break: break-all;
+}
+
+.mvpHelper {
+  margin: 12px 0 0;
+}
+
+@media (max-width: 920px) {
+  .loginGrid {
+    grid-template-columns: 1fr;
+    max-width: 520px;
+    gap: 28px;
+  }
+
+  .workspacePreview {
+    min-height: auto;
+  }
+
+  .previewHeader h2 {
+    font-size: 26px;
+    line-height: 32px;
+  }
+}
+
+@media (max-width: 560px) {
+  .loginPage {
+    padding: 20px 12px 88px;
+  }
+
+  .loginCard,
+  .workspacePreview {
+    padding: 24px;
+  }
+
+  .socialButton {
+    grid-template-columns: 34px 1fr 34px;
+    font-size: 15px;
+  }
+
+  .loginLinks {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+
+  .mvpLauncher {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .mvpOverlay {
+    padding: 12px;
+  }
+}
