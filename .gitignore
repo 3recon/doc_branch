@@ -21,6 +21,7 @@ node_modules/
 .next/
 out/
 dist/
+*.tsbuildinfo
 
 # Java / Spring Boot
 build/
