@@ -1,5 +1,5 @@
-import { LoginPage } from "@/components/auth/LoginPage";
+import { ProjectHomeGate } from "@/components/projects/ProjectHomeGate";
 
 export default function Page() {
-  return <LoginPage />;
+  return <ProjectHomeGate />;
 }
