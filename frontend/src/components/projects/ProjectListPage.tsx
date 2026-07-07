@@ -1,8 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getProjects } from "@/lib/api/projects";
+import { useCallback, useEffect, useState } from "react";
+import {
+  getProjects,
+  type ProjectDetailResponse
+} from "@/lib/api/projects";
 import type { UserResponse } from "@/lib/api/users";
+import { CreateProjectModal } from "./CreateProjectModal";
 import { ProjectCard } from "./ProjectCard";
 
 export type ProjectListPageProject = {
@@ -17,20 +21,48 @@ export type ProjectListPageProject = {
 type ProjectListPageProps = {
   currentUser: UserResponse;
   loadProjects?: (userId: string) => Promise<ProjectListPageProject[]>;
+  CreateProjectModalComponent?: (props: CreateProjectModalComponentProps) => React.ReactNode;
+};
+
+type CreateProjectModalComponentProps = {
+  ownerUserId: string;
+  onClose: () => void;
+  onCreated: (project: ProjectDetailResponse) => void;
 };
 
 export function ProjectListPage({
   currentUser,
-  loadProjects = getProjects
+  loadProjects = getProjects,
+  CreateProjectModalComponent = CreateProjectModal
 }: ProjectListPageProps) {
   const [projects, setProjects] = useState<ProjectListPageProject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  const fetchProjects = useCallback(async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+
+    try {
+      const nextProjects = await loadProjects(currentUser.userId);
+      setProjects(nextProjects);
+    } catch (error) {
+      setProjects([]);
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "프로젝트 목록을 불러오지 못했습니다."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser.userId, loadProjects]);
 
   useEffect(() => {
     let isActive = true;
 
-    async function fetchProjects() {
+    async function fetchProjectsIfActive() {
       setIsLoading(true);
       setErrorMessage(null);
 
@@ -56,7 +88,7 @@ export function ProjectListPage({
       }
     }
 
-    void fetchProjects();
+    void fetchProjectsIfActive();
 
     return () => {
       isActive = false;
@@ -103,7 +135,11 @@ export function ProjectListPage({
               <h1 id="project-list-title">내 프로젝트</h1>
               <p>진행 중인 프로젝트를 확인하고 문서 작업 공간을 선택합니다.</p>
             </div>
-            <button className="projectCreateButton" type="button">
+            <button
+              className="projectCreateButton"
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+            >
               <span aria-hidden="true">+</span>
               새 프로젝트
             </button>
@@ -155,7 +191,11 @@ export function ProjectListPage({
                 <ProjectCard key={project.projectId} project={project} />
               ))}
 
-              <button className="projectAddCard" type="button">
+              <button
+                className="projectAddCard"
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+              >
                 <span aria-hidden="true">+</span>
                 <strong>새 프로젝트 만들기</strong>
               </button>
@@ -165,7 +205,11 @@ export function ProjectListPage({
               <span aria-hidden="true">+</span>
               <h2>아직 프로젝트가 없습니다</h2>
               <p>새 프로젝트를 만들면 이 목록에서 작업 공간을 확인할 수 있습니다.</p>
-              <button className="projectCreateButton" type="button">
+              <button
+                className="projectCreateButton"
+                type="button"
+                onClick={() => setIsCreateModalOpen(true)}
+              >
                 새 프로젝트
               </button>
             </div>
@@ -181,6 +225,17 @@ export function ProjectListPage({
           <a href="#settings">설정</a>
         </nav>
       </main>
+
+      {isCreateModalOpen ? (
+        <CreateProjectModalComponent
+          ownerUserId={currentUser.userId}
+          onClose={() => setIsCreateModalOpen(false)}
+          onCreated={() => {
+            setIsCreateModalOpen(false);
+            void fetchProjects();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

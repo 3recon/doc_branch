@@ -1,6 +1,13 @@
 import { ProjectCard } from "./ProjectCard";
 import { ProjectListPage, type ProjectListPageProject } from "./ProjectListPage";
 import type { UserResponse } from "@/lib/api/users";
+import type { ProjectDetailResponse } from "@/lib/api/projects";
+
+type CreateProjectModalContractProps = {
+  ownerUserId: string;
+  onClose: () => void;
+  onCreated: (project: ProjectDetailResponse) => void;
+};
 
 const currentUser: UserResponse = {
   userId: "user-1",
@@ -20,6 +27,16 @@ const projects: ProjectListPageProject[] = [
 ];
 
 export function ProjectListPageTypeContract() {
+  function CreateProjectModalContract({
+    ownerUserId,
+    onClose,
+    onCreated
+  }: CreateProjectModalContractProps) {
+    onClose;
+    onCreated;
+    return <div data-owner-user-id={ownerUserId} />;
+  }
+
   return (
     <ProjectListPage
       currentUser={currentUser}
@@ -30,6 +47,7 @@ export function ProjectListPageTypeContract() {
 
         return projects;
       }}
+      CreateProjectModalComponent={CreateProjectModalContract}
     />
   );
 }
