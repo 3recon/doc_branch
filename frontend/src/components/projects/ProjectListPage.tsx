@@ -1,3 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { getProjects } from "@/lib/api/projects";
+import type { UserResponse } from "@/lib/api/users";
 import { ProjectCard } from "./ProjectCard";
 
 export type ProjectListPageProject = {
@@ -10,16 +15,54 @@ export type ProjectListPageProject = {
 };
 
 type ProjectListPageProps = {
-  currentUserName: string;
-  currentUserEmail: string;
-  projects: ProjectListPageProject[];
+  currentUser: UserResponse;
+  loadProjects?: (userId: string) => Promise<ProjectListPageProject[]>;
 };
 
 export function ProjectListPage({
-  currentUserName,
-  currentUserEmail,
-  projects
+  currentUser,
+  loadProjects = getProjects
 }: ProjectListPageProps) {
+  const [projects, setProjects] = useState<ProjectListPageProject[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isActive = true;
+
+    async function fetchProjects() {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      try {
+        const nextProjects = await loadProjects(currentUser.userId);
+
+        if (isActive) {
+          setProjects(nextProjects);
+        }
+      } catch (error) {
+        if (isActive) {
+          setProjects([]);
+          setErrorMessage(
+            error instanceof Error
+              ? error.message
+              : "프로젝트 목록을 불러오지 못했습니다."
+          );
+        }
+      } finally {
+        if (isActive) {
+          setIsLoading(false);
+        }
+      }
+    }
+
+    void fetchProjects();
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser.userId, loadProjects]);
+
   return (
     <div className="projectWorkspace">
       <aside className="projectSideNav" aria-label="프로젝트 탐색">
@@ -27,11 +70,11 @@ export function ProjectListPage({
           <p className="projectBrand">DocBranch</p>
           <button className="projectUserButton" type="button">
             <span className="projectAvatar" aria-hidden="true">
-              {currentUserName.slice(0, 1)}
+              {currentUser.name.slice(0, 1)}
             </span>
             <span>
-              <strong>{currentUserName}</strong>
-              <small>{currentUserEmail}</small>
+              <strong>{currentUser.name}</strong>
+              <small>{currentUser.email}</small>
             </span>
           </button>
         </div>
@@ -92,7 +135,21 @@ export function ProjectListPage({
             </div>
           </div>
 
-          {projects.length > 0 ? (
+          {isLoading ? (
+            <div className="projectListState" role="status" aria-live="polite">
+              <span className="projectStateMark" aria-hidden="true" />
+              <h2>프로젝트 목록을 불러오는 중입니다</h2>
+              <p>참여 중인 프로젝트 작업 공간을 확인하고 있습니다.</p>
+            </div>
+          ) : errorMessage ? (
+            <div className="projectListState projectListStateError" role="alert">
+              <span className="projectStateMark" aria-hidden="true">
+                !
+              </span>
+              <h2>프로젝트 목록을 불러오지 못했습니다</h2>
+              <p>{errorMessage}</p>
+            </div>
+          ) : projects.length > 0 ? (
             <div className="projectGrid">
               {projects.map((project) => (
                 <ProjectCard key={project.projectId} project={project} />

@@ -1,5 +1,12 @@
 import { ProjectCard } from "./ProjectCard";
 import { ProjectListPage, type ProjectListPageProject } from "./ProjectListPage";
+import type { UserResponse } from "@/lib/api/users";
+
+const currentUser: UserResponse = {
+  userId: "user-1",
+  name: "김진수",
+  email: "jinsoo.kim@docbranch.com"
+};
 
 const projects: ProjectListPageProject[] = [
   {
@@ -15,9 +22,14 @@ const projects: ProjectListPageProject[] = [
 export function ProjectListPageTypeContract() {
   return (
     <ProjectListPage
-      currentUserName="김진수"
-      currentUserEmail="jinsoo.kim@docbranch.com"
-      projects={projects}
+      currentUser={currentUser}
+      loadProjects={async (userId) => {
+        if (userId !== currentUser.userId) {
+          throw new Error("Unexpected user");
+        }
+
+        return projects;
+      }}
     />
   );
 }
